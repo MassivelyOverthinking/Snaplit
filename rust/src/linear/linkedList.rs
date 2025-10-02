@@ -118,12 +118,20 @@ impl LinkedList {
 
     }
 
-    pub fn search(&self) -> bool {
+    pub fn to_list(&self, py: Python<'py>) -> Option<Bound<&'py PyList>> {
+        if self.head.is_none() {
+            return None;
+        } else {
+            let mut new_list: Vec<PyObject> = Vec::new();
 
-    }
+            let mut current: WagonNode = self.head.as_mut().unwrap();
+            while current.next.is_some() {
+                new_list.push(&current.data);
+                current = current.next.as_mut().unwrap();
+            }
 
-    pub fn to_list(&self) -> Option<Bound<'py, PyList>> {
-
+            return PyList::new(py, &new_list);
+        }
     }
 
     pub fn clear(&mut self) {
