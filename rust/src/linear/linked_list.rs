@@ -193,7 +193,7 @@ impl LinkedList {
         Err(PyValueError::new_err("No data found at index"))
     }
 
-    pub fn to_list(&self, py: Python) -> PyResult<&PyList> {
+    pub fn to_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         let mut elements = Vec::new();
         let mut current_node = self.head.as_ref();
 
@@ -201,8 +201,8 @@ impl LinkedList {
             elements.push(node.data.clone_ref(py));
             current_node = node.next.as_ref();
         }
-        let list_bound = PyList::new(py, elements)?;
-        Ok(list_bound.into())
+        let list_bound = PyList::new(py, elements);
+        Ok(list_bound)
     }
 
     pub fn clear(&mut self) {
@@ -231,18 +231,6 @@ impl LinkedList {
 
     pub fn __contains__(&self, py: Python, value: PyObject) -> bool {
         self.contains(py, value)
-    }
-
-    pub fn __repr__(&self, py: Python) -> String {
-        let mut values = Vec::new();
-        let mut current_node = self.head.as_ref();
-
-        while let Some(node) = current_node {
-            let s = node.data.as_ref(py).str().unwrap_or_else(|_| "<unprintable>".into());
-            values.push(s.to_string());
-            current_node = node.next.as_ref();
-        }
-        format!("LinkedList ([{}])", values.join(", "))
     }
 }
 
