@@ -1,23 +1,16 @@
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 use pyo3::exceptions::PyValueError;
+use pyo3::PyObject;
+use pyo3::types::PyList;
 
-#[pyclass(hidden)]
+#[pyclass]
 struct WagonNode {
     data: PyObject,
     next: Option<Box<WagonNode>>
 }
 
-#[pymethods]
-impl WagonNode {
-    #[new]
-    pub fn new(data: PyObject, next: Option<Box<WagonNode>>) -> Self {
-        Self { data, next} 
-    }
-}
-
 #[pyclass]
-struct LinkedList {
+pub struct LinkedList {
     head: Option<Box<WagonNode>>,
     count: usize
 }
@@ -62,13 +55,11 @@ impl LinkedList {
         self.count += 1;
     }
 
-    pub fn remove_head(&mut self) -> Option<Box<WagonNode>> {
-        let old_head = self.head.take();
-
-        if let Some(mut node) = old_head {
+    pub fn remove_head(&mut self) -> Option<PyObject> {
+        if let Some(mut node) = self.head.take() {
             self.head = node.next.take();
             self.count -= 1;
-            return Some(node);
+            return Some(node.data);
         } else {
             return None;
         }
@@ -109,7 +100,7 @@ impl LinkedList {
         Ok(())
     }
 
-    pub fn get(&self, index: usize) -> PyResult<(PyObject)> {
+    pub fn get(&self, py: Python, index: usize) -> PyResult<PyObject> {
         if index >= self.count {
             return Err(PyValueError::new_err("Index out of bounds"))
         }
@@ -119,7 +110,7 @@ impl LinkedList {
 
         while let Some(node) = current_node {
             if counter == index {
-                return Ok(node.data.clone());
+                return Ok(node.data.clone_ref(py));
             }
             current_node = node.next.as_ref();
             counter += 1;
@@ -139,7 +130,7 @@ impl LinkedList {
         false
     }
 
-    pub fn pop(&mut self, index: Option<usize>) -> PyResult<(PyObject)> {
+    pub fn pop(&mut self, index: Option<usize>) -> PyResult<PyObject> {
         let idx = index.unwrap_or(self.count.checked_sub(1).ok_or_else(|| PyValueError::new_err("List is Empty"))?);
 
         self.remove(idx).ok_or_else(|| PyValueError::new_err("Index out of bounds"))
@@ -151,7 +142,7 @@ impl LinkedList {
         }
 
         if index == 0 {
-            return self.remove_head().map(|node| node.data);
+            return self.remove_head();
         }
 
         let mut current_node = self.head.as_mut()?;
@@ -202,7 +193,7 @@ impl LinkedList {
         Err(PyValueError::new_err("No data found at index"))
     }
 
-    pub fn to_list(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+    pub fn to_list(&self, py: Python) -> PyResult<&PyList> {
         let mut elements = Vec::new();
         let mut current_node = self.head.as_ref();
 
@@ -210,7 +201,8 @@ impl LinkedList {
             elements.push(node.data.clone_ref(py));
             current_node = node.next.as_ref();
         }
-        PyList::new(py, elements)
+        let list_bound = PyList::new(py, elements)?;
+        Ok(list_bound.into())
     }
 
     pub fn clear(&mut self) {
@@ -222,8 +214,8 @@ impl LinkedList {
         self.count
     }
 
-    pub fn __getitem__(&self, index: usize) -> PyResult<PyObject> {
-        self.get(index)
+    pub fn __getitem__(&self, py: Python, index: usize) -> PyResult<PyObject> {
+        self.get(py, index)
     }
 
     pub fn __setitem__(&mut self, value: PyObject, index: usize) -> PyResult<()> {
