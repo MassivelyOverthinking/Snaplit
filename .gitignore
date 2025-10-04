@@ -29,6 +29,11 @@ venv/
 .installed.cfg
 *.egg
 
+#
+/tests/
+test_*.py
+*_test.py
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt

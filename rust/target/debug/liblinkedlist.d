@@ -1,1 +1,1 @@
-/Users/simon/Desktop/Projects/Snaplit/rust/target/debug/liblinkedlist.dylib: /Users/simon/Desktop/Projects/Snaplit/rust/src/lib.rs /Users/simon/Desktop/Projects/Snaplit/rust/src/linear/linked_list.rs /Users/simon/Desktop/Projects/Snaplit/rust/src/linear/mod.rs
+/Users/simon/Desktop/Projects/Snaplit/rust/target/debug/liblinkedlist.dylib: /Users/simon/Desktop/Projects/Snaplit/rust/src/lib.rs /Users/simon/Desktop/Projects/Snaplit/rust/src/linear/linked_list_native.rs /Users/simon/Desktop/Projects/Snaplit/rust/src/linear/mod.rs

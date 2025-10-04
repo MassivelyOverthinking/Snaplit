@@ -1,7 +1,7 @@
 mod linear;
 
 use pyo3::prelude::*;
-use linear::linked_list::LinkedList;
+use linear::linked_list_native::LinkedList;
 
 #[pymodule]
 fn linkedlist(_py: Python, m: &PyModule) -> PyResult<()> {
