@@ -16,57 +16,57 @@ class LinkedList():
 
     ----- Methods -----
 
-    prepend(value: Any) -> None
+    prepend(value: Any) -> None:
         Add an element to the start(head) of the list.
 
-    append(value: Any) -> None
+    append(value: Any) -> None:
         Add an element to the end(tail) of the list.
 
-    remove_head() -> Optional[Any]
+    remove_head() -> Optional[Any]:
         Remove and return the current head of the list. Returns None if list is empty.
 
-    insert(value: Any, index: Optional[int] = None) -> None
+    insert(value: Any, index: Optional[int] = None) -> None:
         Inserts a new element at the specified index. If index is None append the lement to the end.
 
-    get(index: int) -> Any
+    get(index: int) -> Any:
         Retrieve the element at the specified index.
 
     contains(value: Any) -> bool:
         Returns True is the value is contained within the list, else False.
 
-    pop(index: Opitional[int] = None) -> Any
+    pop(index: Opitional[int] = None) -> Any:
         Remove and return the element at the specified index.
         Defaults to tail element is index is None.
 
-    remove(index: int) -> Optional[Any]
+    remove(index: int) -> Optional[Any]:
         Remove and return the lement at the specified index.
         Returns None if the index is out of bounds.
 
-    search(value: Any) -> Optional[int]
+    search(value: Any) -> Optional[int]:
         Return the index of the first occurence of the value in the list, or None if value not found.
 
-    update(value: Any, index: int) -> None
+    update(value: Any, index: int) -> None:
         Update the element at the specified index.
 
-    to_list() -> List[Any]
+    to_list() -> List[Any]:
         Converts the linked list int a native Python list
 
-    clear() -> None
+    clear() -> None:
         Remove all elements from the linked list.
 
-    __len__() -> int
+    __len__() -> int:
         Return the number of elements currently in the list.
 
-    __getitem__(index: int) -> Any
+    __getitem__(index: int) -> Any:
         Enable bracket notation to retrive elements eg. linked_list[index].
 
-    __setitem__(value: Any, index: int) -> None
+    __setitem__(value: Any, index: int) -> None:
         Enable bracket notation to set list elements eg. linked_list[index] = value.
 
-    __delitem__(index: int) -> None
+    __delitem__(index: int) -> None:
         Enable the deletion of elements by index eg. del linked_list[index].
 
-    __contains__(value: Any) -> bool
+    __contains__(value: Any) -> bool:
         Enable native Python membership checking in list eg. value in linked_list.
 
     ----- Example -----
