@@ -61,16 +61,106 @@ impl PerfectList {
         }
     }
 
-    pub fn insert(&mut self, value: PyObject, index: Option<usize>) -> PyResult<()> {
-        
+    pub fn remove_tail(&mut self) -> Option<PyObject> {
+        if let Some(mut node) = self.tail.take() {
+            self.head = node.next.take();
+            self.tail = node.previous.take();
+            self.count -= 1;
+            Some(node.data)
+        } else {
+            None
+        }
     }
 
-    pub fn get(&mut self, py: Python, index: usize) -> PyRef<PyObject> {
-        
+    pub fn insert(&mut self, value: PyObject, index: Option<usize>) -> PyResult<()> {
+        let idx = index.unwrap_or(self.count);
+
+        if idx > self.count {
+            return Err(PyValueError::new_err("Index out of bounds"))
+        }
+
+        if idx == 0 {
+            let new_node: WagonNode = Box::new(WagonNode {
+                data: value,
+                next: self.head.take(),
+                previous: self.tail.take(),
+            });
+            self.head = Some(new_node);
+        } else if idx == self.count - 1 {
+            let new_node: WagonNode = Box::new(WagonNode {
+                data: value,
+                next: self.head.take(),
+                previous: self.tail.take(),
+            });
+            self.tail = Some(new_node);
+        } else {
+            let mut current_node = self.head.as_mut();
+            for _ in 0..(idx - 1) {
+                match current_node {
+                    Some(node) => current_node = node.next.as_mut(),
+                    None => Err(PyValueError::new_err("Corrupted list")),
+                }
+            }
+        }
+
+        if let Some(node) = current_node {
+                let next_node = node.next.take();
+                let previous_node = node.previous.take();
+                let new_node = Box::new(WagonNode {
+                    data: value,
+                    next: next_node,
+                    previous: previous_node,
+                });
+                node.next = Some(new_node);
+            }
+        self.count += 1;
+        Ok(())
+    }
+
+    pub fn get(&self, py: Python, index: usize) -> PyResult<PyObject> {
+        if index >= self.count {
+            return Err(PyValueError::new_err("Index out of bounds"));
+        }
+
+        let halved_count = self.count / 2;
+
+        if index > halved_count {
+            let mut counter = self.count - 1;
+            let mut current_node = self.tail.as_ref();
+            while let Some(node) = current_node {
+                if counter == index {
+                    return Ok(node.data.clone_ref(py));
+                }
+                current_node = node.previous.as_ref();
+                if counter == 0 {
+                    break;
+                }
+                counter -= 1;
+            }
+        } else {
+            let mut counter = 0;
+            let mut current_node = self.head.as_ref();
+            while let Some(node) = current_node {
+                if counter == index {
+                    return Ok(node.data.clone_ref(py));
+                }
+                current_node = node.next.as_ref();
+                counter += 1;
+            }
+        }
+        return Err(PyValueError::new_err("Index not found"));
     }
 
     pub fn contains(&mut self, py: Python, value: PyObject) -> bool {
-        
+        let mut current_node = self.head.as_ref();
+
+        while let Some(node) = current_node {
+            if node.data.as_ref(py).eq(value.as_ref(py)).unwrap_or(false) {
+                return true;
+            }
+            current_node = node.next.as_ref();
+        }
+        false
     }
 
     pub fn pop(&mut self, index: Option<usize>) -> PyResult<PyObject> {
@@ -78,19 +168,107 @@ impl PerfectList {
     }
 
     pub fn remove(&mut self, index: usize) -> Option<PyObject> {
-        
+        if index >= self.count {
+            return None;
+        }
+
+        if index == 0 {
+            return self.remove_head();
+        }
+
+        if index == self.count - 1 {
+            return self.remove_tail();
+        }
+
+        let mut halved_count = self.count / 2;
+
+        if index > halved_count {
+            let mut counter = self.count - 1;
+            let mut current_node = self.tail.as_ref();
+
+            while let Some(node) = current_node {
+                if counter == index {
+
+                    Some(node.data)
+                }
+                current_node = node.previous.as_ref();
+                counter -= 1;
+            } else if index <= halved_count {
+                let mut counter = 0;
+                let mut current_node = self.head.as_ref();
+
+                while let Some(node) = current_node {
+                if counter == index {
+
+                    Some(node.data)
+                }
+                current_node = node.new.as_ref();
+                counter += 1;
+            } else {
+                None
+            }
+        }
     }
 
     pub fn search(&self, py: Python, value: PyObject) -> Option<usize> {
-        
+        let mut current_node = self.head.as_ref();
+        let mut index = 0;
+
+        while let Some(node) = current_node {
+            if node.data.as_ref(py).eq(value.as_ref(py)).unwrap_or(false) {
+                return Some(index);
+            }
+            current_node = node.next.as_ref();
+            index += 1;
+        }
+        None
     }
 
     pub fn update(&mut self, value: PyObject, index: usize) -> PyResult<()> {
-        
+        if index >= self.count {
+            return Err(PyValueError::new_err("Index out of bounds"));
+        }
+
+        let halved_count = self.count / 2;
+
+        if index > halved_count {
+            let mut counter = self.count - 1;
+            let mut current_node = self.tail.as_mut();
+
+            while let Some(node) = current_node {
+                if counter == index {
+                    node.data = value;
+                    return Ok(());
+                }
+                current_node = node.previous.as_mut();
+                counter -= 1;
+            }
+        } else {
+            let mut counter = 0;
+            let mut current_node = self.head.as_mut();
+
+            while let Some(node) = current_node {
+                if counter == index {
+                    node.data = value;
+                    return Ok(());
+                }
+                current_node = node.next.as_mut();
+                counter += 1;
+            }
+        }
+        return Err(PyValueError::new_err("Index not found"));
     }
 
     pub fn to_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
-        
+        let mut elements = Vec::new();
+        let mut current_node = self.head.as_ref();
+
+        while let Some(node) = current_node {
+            elements.push(node.data.clone_ref(py));
+            current_node = node.next.as_ref();
+        }
+        let list_bound = PyList::new(py, elements);
+        Ok(list_bound)
     }
 
     pub fn clear(&mut self) {
