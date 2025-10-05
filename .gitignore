@@ -1,9 +1,15 @@
-/target
+target/
+.maturin/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .pytest_cache/
 *.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dll
+*.dylib
 
 # C extensions
 *.so

@@ -1,10 +1,11 @@
+use pyo3::prelude::*;
+
 mod linear;
 
-use pyo3::prelude::*;
 use linear::linked_list_native::LinkedList;
 
 #[pymodule]
-fn linkedlist(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<LinkedList>()?;
     Ok(())
 }
