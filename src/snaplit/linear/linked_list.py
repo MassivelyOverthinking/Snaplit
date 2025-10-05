@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit.rust_snaplit import LinkedList as _RustLinkedList
+from rust_snaplit import LinkedList as _RustLinkedList
 
 from typing import Any, Optional, List
 
