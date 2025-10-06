@@ -1,4 +1,4 @@
-use pyo3::prelude::{self, *};
+use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyObject;
 use pyo3::types::PyList;
@@ -9,6 +9,7 @@ struct TowerNode {
     next: Option<Box<TowerNode>>,
 }
 
+#[pyclass]
 pub struct Stack {
     top: Option<Box<TowerNode>>,
     count: usize,
@@ -55,6 +56,35 @@ impl Stack {
         return self.count;
     }
 
+    pub fn swap(&mut self, index: Option<usize>) -> PyResult<()> {
+        let idx = index.unwrap_or(1);
+
+        if idx > self.count {
+            return Err(PyValueError::new_err("Index out of bounds"));
+        } else if self.is_empty() {
+            return Err(PyValueError::new_err("Stack is currently empty"));
+        } else if self.count == 1 {
+            return Err(PyValueError::new_err("Only 1 element available in Stack - Cannot swap"));
+        } else if idx == 0 {
+            return Ok(());
+        }
+
+        let current_node = self.top.as_mut().unwrap();
+        
+        let mut target_node = current_node.next.as_mut().ok_or_else(|| {
+            PyValueError::new_err("Next node doens't exist, can't swap!")
+        })?;
+
+        for _ in 1..idx {
+            target_node = target_node.next.as_mut().ok_or_else(|| {
+                PyValueError::new_err("Index out of bounds")
+            })?;
+        }
+
+        std::mem::swap(&mut current_node.data, &mut target_node.data);
+        Ok(())
+    }
+
     pub fn contains(&self, py: Python, value: PyObject) -> bool {
         let mut current_node = self.top.as_ref();
 
@@ -68,8 +98,21 @@ impl Stack {
         return false;
     }
 
-    pub fn copy() {
+    pub fn copy(&self, py: Python) -> PyResult<PyObject> {
+        let mut new_stack = Stack::new();
+        let mut elements = Vec::new();
 
+        let mut current_node = self.top.as_ref();
+        while let Some(node) = current_node  {
+            elements.push(node.data.clone());
+            current_node = node.next.as_ref();
+        }
+
+        for element in elements.iter().rev() {
+            new_stack.push(element.clone());
+        }
+
+        Py::new(py, new_stack).map(|py_stack| py_stack.into_py(py))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -92,8 +135,33 @@ impl Stack {
         Ok(list_bound)
     }
 
-    pub fn reverse() {
+    pub fn reverse(&mut self) -> PyResult<()> {
+        if self.top.is_none() || self.count == 1 {
+            return Err(PyValueError::new_err("Reverse will have no effect on current Stack"));
+        } else {
+            
+            let mut current_node = self.top.take();
+            let mut previous: Option<Box<TowerNode>> = None;
 
+            while let Some(mut node) = current_node {
+                let next = node.next.take();
+                node.next = previous;
+                previous = Some(node);
+                current_node = next;
+            }
+
+            self.top = previous;
+            Ok(())
+        }
+    }
+
+    pub fn update_top(&mut self, value: PyObject) -> PyResult<()> {
+        if let Some(node) = self.top.as_mut() {
+            node.data = value;
+            Ok(()) 
+        } else {
+            Err(PyValueError::new_err("No current top available in Stack"))
+        }
     }
 
     pub fn clear(&mut self) {
@@ -103,5 +171,13 @@ impl Stack {
 
     pub fn __len__(&self) -> usize {
         return self.size();
+    }
+
+    pub fn __copy__(&self, py: Python) -> PyResult<PyObject> {
+        self.copy(py)
+    }
+
+    pub fn __contains__(&self, py: Python, value: PyObject) -> bool {
+        self.contains(py, value)
     }
 }
