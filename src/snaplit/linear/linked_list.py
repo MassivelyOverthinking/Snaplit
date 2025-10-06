@@ -10,9 +10,9 @@ class LinkedList():
     """
     A high-performance linked list data structure powered by Rust.
 
-    The linked list support sefficient prepend, append, add, get, insert and search operations.
+    The linked list supports efficient prepend, append, add, get, insert and search operations.
     By leveraging Rust's speed and type safety, it offers faster execution and lower memory overhead,
-    compared to pure Python implementations., while providing a Python interface.
+    compared to pure Python implementations, while providing a Python interface.
 
     ----- Methods -----
 
