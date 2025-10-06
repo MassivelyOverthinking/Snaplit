@@ -8,6 +8,7 @@ mod linear;
 use linear::linked_list_native::LinkedList;
 use linear::stack_native::Stack;
 use linear::queue_native::Queue;
+use linear::ring_buffer_native::RingBuffer;
 
 // Final export to Python
 #[pymodule]
@@ -15,5 +16,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<LinkedList>()?;
     m.add_class::<Stack>()?;
     m.add_class::<Queue>()?;
+    m.add_class::<RingBuffer>()?;
     Ok(())
 }
