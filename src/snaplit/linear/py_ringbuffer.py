@@ -32,7 +32,7 @@ class RingBuffer():
         Returns the head element without removing it from the internal array.
 
     size() -> int:
-        Returns the current number of elements present in the internal array:
+        Returns the current number of elements present in the internal array.
 
     capacity() -> int:
         Returns the maximum capacity of elements available in the internal array.
