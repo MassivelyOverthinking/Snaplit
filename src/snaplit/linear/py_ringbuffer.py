@@ -104,7 +104,7 @@ class RingBuffer():
         self._inner.extend(elements)
 
     def contains(self, value: Any) -> bool:
-        return self._contains(value)
+        return self._inner.contains(value)
     
     def search(self, value: Any) -> Optional[int]:
         return self._inner.search(value)
@@ -116,7 +116,7 @@ class RingBuffer():
         return self._inner.is_empty()
     
     def is_full(self) -> bool:
-        return self._inner.is_empty()
+        return self._inner.is_full()
     
     def to_list(self) -> List[Any]:
         return self._inner.to_list()
@@ -136,7 +136,7 @@ class RingBuffer():
     def __bool__(self) -> bool:
         return not self._inner.is_empty()
     
-    def __getitem__(self, value: Any) -> Optional[Any]:
+    def __getitem__(self, value: Any) -> Any:
         return self._inner.__getitem__(value)
     
     def __contains__(self, value: Any) -> bool:
