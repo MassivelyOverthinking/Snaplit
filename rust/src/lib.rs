@@ -10,6 +10,7 @@ use linear::stack_native::Stack;
 use linear::queue_native::Queue;
 use linear::ring_buffer_native::RingBuffer;
 use linear::circular_buffer_native::CircularBuffer;
+use linear::priority_queue_native::PriorityQueue;
 
 // Final export to Python
 #[pymodule]
@@ -19,5 +20,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Queue>()?;
     m.add_class::<RingBuffer>()?;
     m.add_class::<CircularBuffer>()?;
+    m.add_class::<PriorityQueue>()?;
     Ok(())
 }
