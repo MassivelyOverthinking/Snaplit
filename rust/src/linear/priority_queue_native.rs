@@ -40,7 +40,6 @@ impl PriorityQueue {
             _ => return Err(PyValueError::new_err("Priority Type must be 'min' or 'max'")),
         };
 
-
         Ok(Self {
             priority: heap_type,
             array: Vec::new(),
@@ -97,6 +96,14 @@ impl PriorityQueue {
         self.array.len()
     }
 
+    pub fn is_min_heap(&self) -> bool {
+        matches!(self.priority, HeapType::Min)
+    }
+
+    pub fn is_max_heap(&self) -> bool {
+        matches!(self.priority, HeapType::Max)
+    }
+
     pub fn contains(&self, py: Python, value: PyObject) -> bool {
         for item in self.array.iter() {
             if item.value.as_ref(py).eq(value.as_ref(py)).unwrap_or(false) {
@@ -120,6 +127,19 @@ impl PriorityQueue {
         self.heapify_down(Some(index));
             
         Ok(())
+    }
+
+    pub fn search(&self, py: Python, value: PyObject) -> PyResult<usize> {
+        if self.array.len() == 0 {
+            return Err(PyValueError::new_err("No elements available in Queue"));
+        }
+
+        for (index, item) in self.array.iter().enumerate() {
+            if item.value.as_ref(py).eq(value.as_ref(py)).unwrap_or(false) {
+                return Ok(index);
+            }
+        }
+        Err(PyValueError::new_err(format!("No entry with value {} found in Queue", value)))
     }
 
     pub fn remove(&mut self, py: Python, index: usize, return_priority: Option<bool>) -> PyResult<PyObject> {
@@ -151,6 +171,14 @@ impl PriorityQueue {
         }
     }
 
+    pub fn extend(&mut self, iterable: &PyList) -> PyResult<()> {
+        for obj in iterable.iter() {
+            let (value, priority): (PyObject, i32) = obj.extract()?;
+            self.enqueue(value, priority);
+        }
+        Ok(())
+    }
+
     pub fn to_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         let mut elements = Vec::with_capacity(self.array.len());
 
@@ -160,7 +188,23 @@ impl PriorityQueue {
         }
         let list_bound = PyList::new(py, elements);
         Ok(list_bound)
-    } 
+    }
+
+    pub fn copy(&self, py: Python) -> PyResult<PyObject> {
+        let mut new_queue = PriorityQueue {
+            priority: self.priority,
+            array: Vec::with_capacity(self.array.len())
+        };
+
+        for item in self.array.iter() {
+            new_queue.array.push(HeapItem {
+                priority: item.priority,
+                value: item.value.clone_ref(py),
+            });
+        }
+
+        Py::new(py, new_queue).map(|py_obj| py_obj.to_object(py))
+    }
 
     pub fn clear(&mut self) {
         self.array.clear();
@@ -176,6 +220,10 @@ impl PriorityQueue {
 
     pub fn __contains__(&self, py: Python, value: PyObject) -> bool {
         self.contains(py, value)
+    }
+
+    pub fn __copy__(&self, py: Python) -> PyResult<PyObject> {
+        self.copy(py)
     }
 
     fn heapify_up(&mut self, mut index: usize) {
