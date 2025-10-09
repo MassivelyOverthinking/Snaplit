@@ -1,8 +1,8 @@
 // Imports
 use pyo3::prelude::*;
-
 // rust mods
 mod linear;
+mod trees;
 
 // imports from rust folders
 use linear::linked_list_native::LinkedList;
