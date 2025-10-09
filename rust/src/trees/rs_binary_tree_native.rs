@@ -54,6 +54,35 @@ impl BinarySearchTree {
             0
         }
     }
+
+    fn inorder_traversel(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>) {
+        if let Some(ref boxed_node) = node {
+            Self::inorder_traversel(py, &boxed_node.left, acc);
+
+            acc.push(boxed_node.value.clone_ref(py));
+
+            Self::inorder_traversel(py,&boxed_node.right, acc);
+        } 
+    }
+
+    fn preorder_traversel(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>) {
+        if let Some(ref boxed_node) = node {
+
+            acc.push(boxed_node.value.clone_ref(py));
+
+            Self::inorder_traversel(py, &boxed_node.left, acc);
+            Self::inorder_traversel(py,&boxed_node.right, acc);
+        } 
+    }
+
+    fn postorder_traversel(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>) {
+        if let Some(ref boxed_node) = node {
+            Self::inorder_traversel(py, &boxed_node.left, acc);
+            Self::inorder_traversel(py,&boxed_node.right, acc);
+
+            acc.push(boxed_node.value.clone_ref(py));
+        } 
+    }
 }
 
 #[pymethods]
@@ -148,6 +177,24 @@ impl BinarySearchTree {
         Err(PyValueError::new_err("Invalid Tree Structure"))
     }
 
+    pub fn at_depth(&self, py: Python, value: PyObject) -> PyResult<usize> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut count = 0;
+        let mut current_node = self.root.as_ref();
+        while let Some(node) = current_node {
+            match Self::comparison(py, value.clone(), node.value.clone())? {
+                Ordering::Less => current_node = node.left.as_ref(),
+                Ordering::Greater => current_node = node.right.as_ref(),
+                Ordering::Equal => return Ok(count)
+            }
+            count += 1;
+        }
+        Err(PyValueError::new_err("Value not found in the Binary Search Tree"))
+    }
+
     pub fn height(&self) -> usize {
         Self::node_height(&self.root)
     }
@@ -158,6 +205,40 @@ impl BinarySearchTree {
 
     pub fn is_empty(&self) -> bool {
         self.size == 0
+    }
+
+    pub fn inorder_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut elements = Vec::with_capacity(self.size);
+        Self::inorder_traversel(py, &self.root, &mut elements);
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn preorder_list<'py>(&mut self, py: Python<'py>) -> PyResult<&'py PyList> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut elements = Vec::with_capacity(self.size);
+        Self::preorder_traversel(py, &self.root, &mut elements);
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn postorder_list<'py>(&mut self, py: Python<'py>) -> PyResult<&'py PyList> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut elements = Vec::with_capacity(self.size);
+        Self::postorder_traversel(py, &self.root, &mut elements);
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn level_order(&mut self, py: Python) -> PyResult<PyList> {
+        
     }
 
     pub fn clear(&mut self) {
