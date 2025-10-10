@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::PyObject;
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 
 struct LeafNode {
     value: PyObject,
@@ -55,33 +56,63 @@ impl BinarySearchTree {
         }
     }
 
-    fn inorder_traversel(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>) {
+    fn inorder_traversal(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
         if let Some(ref boxed_node) = node {
-            Self::inorder_traversel(py, &boxed_node.left, acc);
+            Self::inorder_traversal(py, &boxed_node.left, acc, duplicate);
 
-            acc.push(boxed_node.value.clone_ref(py));
+            if duplicate {
+                for _ in 0..boxed_node.count {
+                    acc.push(boxed_node.value.clone_ref(py));
+                }
+            } else {
+                acc.push(boxed_node.value.clone_ref(py));
+            }
 
-            Self::inorder_traversel(py,&boxed_node.right, acc);
+            Self::inorder_traversal(py,&boxed_node.right, acc, duplicate);
         } 
     }
 
-    fn preorder_traversel(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>) {
+    fn preorder_traversal(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
         if let Some(ref boxed_node) = node {
 
-            acc.push(boxed_node.value.clone_ref(py));
+            if duplicate {
+                for _ in 0..boxed_node.count {
+                    acc.push(boxed_node.value.clone_ref(py));
+                }
+            } else {
+                acc.push(boxed_node.value.clone_ref(py));
+            }
 
-            Self::inorder_traversel(py, &boxed_node.left, acc);
-            Self::inorder_traversel(py,&boxed_node.right, acc);
+            Self::preorder_traversal(py, &boxed_node.left, acc, duplicate);
+            Self::preorder_traversal(py,&boxed_node.right, acc, duplicate);
         } 
     }
 
-    fn postorder_traversel(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>) {
+    fn postorder_traversal(py: Python, node: &Option<Box<LeafNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
         if let Some(ref boxed_node) = node {
-            Self::inorder_traversel(py, &boxed_node.left, acc);
-            Self::inorder_traversel(py,&boxed_node.right, acc);
+            Self::postorder_traversal(py, &boxed_node.left, acc, duplicate);
+            Self::postorder_traversal(py,&boxed_node.right, acc, duplicate);
 
-            acc.push(boxed_node.value.clone_ref(py));
-        } 
+            if duplicate {
+                for _ in 0..boxed_node.count {
+                    acc.push(boxed_node.value.clone_ref(py));
+                }
+            } else {
+                acc.push(boxed_node.value.clone_ref(py));
+            }
+        }
+    }
+
+    fn prune_traversal(node: &mut Option<Box<LeafNode>>) {
+        if let Some(ref mut current_node) = node {
+
+            Self::prune_traversal(&mut current_node.left);
+            Self::prune_traversal(&mut current_node.right);
+
+            if current_node.left.is_none() && current_node.right.is_none() {
+                *node = None;
+            }
+        }
     }
 }
 
@@ -124,6 +155,15 @@ impl BinarySearchTree {
 
     pub fn remove(&mut self, py: Python) -> PyResult<()> {
         
+    }
+
+    pub fn prune(&mut self, _py: Python) -> PyResult<()> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("The current Binary Search Tree holds no nodes"));
+        }
+
+        Self::prune_traversal(&mut self.root);
+        Ok(())
     }
 
     pub fn peek_root(&self, py: Python) -> PyResult<PyObject> {
@@ -213,7 +253,7 @@ impl BinarySearchTree {
         }
 
         let mut elements = Vec::with_capacity(self.size);
-        Self::inorder_traversel(py, &self.root, &mut elements);
+        Self::inorder_traversal(py, &self.root, &mut elements, self.allow_duplicates);
         Ok(PyList::new(py, elements))
     }
 
@@ -223,7 +263,7 @@ impl BinarySearchTree {
         }
 
         let mut elements = Vec::with_capacity(self.size);
-        Self::preorder_traversel(py, &self.root, &mut elements);
+        Self::preorder_traversal(py, &self.root, &mut elements, self.allow_duplicates);
         Ok(PyList::new(py, elements))
     }
 
@@ -233,12 +273,39 @@ impl BinarySearchTree {
         }
 
         let mut elements = Vec::with_capacity(self.size);
-        Self::postorder_traversel(py, &self.root, &mut elements);
+        Self::postorder_traversal(py, &self.root, &mut elements, self.allow_duplicates);
         Ok(PyList::new(py, elements))
     }
 
-    pub fn level_order(&mut self, py: Python) -> PyResult<PyList> {
-        
+    pub fn BFS_list<'py>(&mut self, py: Python<'py>) -> PyResult<&'py PyList> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut results: Vec<PyObject> = Vec::new();
+        let mut queue: VecDeque<&Box<LeafNode>> = VecDeque::new();
+
+        if let Some(ref root_node) = self.root {
+            queue.push_back(root_node);
+        }
+
+        while let Some(current_node) = queue.pop_front() {
+            if self.allow_duplicates {
+                for _ in 0..current_node.count {
+                    results.push(current_node.value.clone_ref(py));
+                }
+            } else {
+                results.push(current_node.value.clone_ref(py));
+            }
+
+            if let Some(ref left_node) = current_node.left {
+                queue.push_back(left_node);
+            }
+            if let Some(ref right_node) = current_node.right {
+                queue.push_back(right_node);
+            }
+        }
+        Ok(PyList::new(py, results))
     }
 
     pub fn clear(&mut self) {
