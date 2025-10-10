@@ -153,8 +153,37 @@ impl BinarySearchTree {
         Ok(())
     }
 
-    pub fn remove(&mut self, py: Python) -> PyResult<()> {
-        
+    pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut current_node = &mut self.root;
+
+        while let Some(node) =  current_node{
+            match Self::comparison(py, value.clone(), node.value.clone())? {
+                Ordering::Greater => current_node = node.right.as_ref(),
+                Ordering::Less => current_node = node.right.as_ref(),
+                Ordering::Equal => break,
+            }
+        }
+
+        let mut final_node = current_node.unwrap();
+
+        if final_node.left.is_none() && final_node.right.is_none() {
+            current_node = None;
+            Ok(final_node.value)
+        } else if final_node.left.is_some() && final_node.right.is_some() {
+            
+        } else if final_node.left.is_some() {
+            current_node = final_node.left;
+            Ok(final_node.value)
+        } else if final_node.right.is_some() {
+            current_node = final_node.right;
+            Ok(final_node.value)
+        }
+
+
     }
 
     pub fn prune(&mut self, _py: Python) -> PyResult<()> {
@@ -187,6 +216,14 @@ impl BinarySearchTree {
             }
         }
         return Ok(false);
+    }
+
+    pub fn extend(&mut self, py: Python, iterable: &PyList) -> PyResult<()> {
+        for item in iterable.iter() {
+            let object = item.extract()?;
+            self.add(py, object);
+        }
+        Ok(())
     }
 
     pub fn min(&self, py: Python) -> PyResult<PyObject> {
