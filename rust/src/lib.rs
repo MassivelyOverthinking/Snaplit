@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 mod linear;
 mod trees;
 
-// imports from rust folders
+// imports from rust folders (Linear)
 use linear::linked_list_native::LinkedList;
 use linear::stack_native::Stack;
 use linear::queue_native::Queue;
@@ -12,7 +12,9 @@ use linear::ring_buffer_native::RingBuffer;
 use linear::circular_buffer_native::CircularBuffer;
 use linear::priority_queue_native::PriorityQueue;
 
+// imports from rust folders (Tree)
 use trees::rs_binary_tree_native::BinarySearchTree;
+use trees::rs_avl_tree_native::AVLTree;
 
 // Final export to Python
 #[pymodule]
@@ -24,5 +26,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<CircularBuffer>()?;
     m.add_class::<PriorityQueue>()?;
     m.add_class::<BinarySearchTree>()?;
+    m.add_class::<AVLTree>()?;
     Ok(())
 }

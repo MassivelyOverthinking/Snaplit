@@ -2,6 +2,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::PyObject;
+use core::error;
 use std::cmp::Ordering;
 
 struct AVLNode {
@@ -83,27 +84,64 @@ impl AVLTree {
     }
 
     pub fn peek_root(&self, py: Python) -> PyResult<PyObject> {
-
+        match self.root.as_ref() {
+            Some(node) => Ok(node.value.clone_ref(py)),
+            None => Err(PyValueError::new_err("No elements currently available in AVL Tree"))
+        }
     }
 
     pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
+        if self.is_empty() {
+            return Ok(false);
+        }
 
+        let mut current_node = self.root.as_ref();
+        while let Some(node) = current_node {
+            match Self::comparison(py, value.clone(), node.value.clone())? {
+                Ordering::Less => current_node = node.left.as_ref(),
+                Ordering::Greater => current_node = node.right.as_ref(),
+                Ordering::Equal => return Ok(true)
+            }
+        }
+        return Ok(false);
     }
 
     pub fn extend(&mut self, py: Python, iterable: &PyList) -> PyResult<()> {
 
     }
 
-    pub fn min(&self, py: Python) -> PyResult<usize> {
+    pub fn min(&self, py: Python) -> PyResult<PyObject> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
 
+        let mut current_node = self.root.as_ref();
+        while let Some(node) = current_node {
+            if node.left.is_none() {
+                return Ok(node.value.clone_ref(py));
+            }
+            current_node = node.left.as_ref();
+        }
+        Err(PyValueError::new_err("Invalid tree structure"))
     }
 
-    pub fn max(&self, py: Python) -> PyResult<usize> {
-        
+    pub fn max(&self, py: Python) -> PyResult<PyObject> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
+
+        let mut current_node = self.root.as_ref();
+        while let Some(node) = current_node {
+            if node.right.is_none() {
+                return Ok(node.value.clone_ref(py));
+            }
+            current_node = node.right.as_ref();
+        }
+        Err(PyValueError::new_err("Invalid Tree structure"))
     }
 
     pub fn at_depth(&self, py: Python, value: PyObject) -> PyResult<usize> {
-
+        
     }
 
     pub fn height(&self) -> usize {
@@ -111,11 +149,11 @@ impl AVLTree {
     }
 
     pub fn size(&self) -> usize {
-        
+        self.size
     }
 
     pub fn is_empty(&self) -> bool {
-        
+        self.size == 0
     }
 
     pub fn inorder_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
@@ -139,7 +177,8 @@ impl AVLTree {
     }
 
     pub fn clear(&mut self) {
-
+        self.root = None;
+        self.size = 0;
     }
  
 }
