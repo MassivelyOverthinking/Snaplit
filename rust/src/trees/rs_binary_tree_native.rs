@@ -4,7 +4,6 @@ use pyo3::types::PyList;
 use pyo3::PyObject;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
-
 struct LeafNode {
     value: PyObject,
     left: Option<Box<LeafNode>>,

@@ -15,6 +15,7 @@ use linear::priority_queue_native::PriorityQueue;
 // imports from rust folders (Tree)
 use trees::rs_binary_tree_native::BinarySearchTree;
 use trees::rs_avl_tree_native::AVLTree;
+use trees::rs_redblack_tree_native::RedBlackTree;
 
 // Final export to Python
 #[pymodule]
@@ -27,5 +28,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PriorityQueue>()?;
     m.add_class::<BinarySearchTree>()?;
     m.add_class::<AVLTree>()?;
+    m.add_class::<RedBlackTree>()?;
     Ok(())
 }
