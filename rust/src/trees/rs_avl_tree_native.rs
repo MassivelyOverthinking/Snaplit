@@ -214,9 +214,123 @@ impl AVLTree {
         } else {
             Ok(Some(Box::new(AVLNode::new(value.clone()))))
         }
-
     }
 
+    fn remove_node(py: Python, node: &mut Option<Box<AVLNode>>, value: &PyObject) -> PyResult<Option<PyObject>> {
+        if let Some(mut current_node) = node.take() {
+            match Self::comparison(py, value.clone(), current_node.value.clone())? {
+                Ordering::Less => {
+                    let result = Self::remove_node(py, &mut current_node.left, value)?;
+                    Self::update_height(&mut current_node);
+                    *node = Self::rebalance_node(py, current_node)?;
+                    return Ok(result);
+                }
+                Ordering::Greater => {
+                    let result = Self::remove_node(py, &mut current_node.right, value)?;
+                    Self::update_height(&mut current_node);
+                    *node = Self::rebalance_node(py, current_node)?;
+                    return Ok(result);
+                }
+                Ordering::Equal => {
+                    
+                    if current_node.count > 1 {
+                        current_node.count -= 1;
+                        *node = Some(current_node);
+                        return Ok(Some(value.clone_ref(py)));
+                    }
+
+                    let removed_value = current_node.value.clone_ref(py);
+
+                    match (current_node.left.take(), current_node.right.take()) {
+                        (None, None) => {
+                            *node = None;
+                        }
+                        (Some(left_node), None) => {
+                            *node = Some(left_node);
+                        }
+                        (None, Some(right_node)) => {
+                            *node = Some(right_node);
+                        }
+                        (Some(left_node), Some(right_node)) => {
+
+                            let  (successor_val, successor_count) = Self::inorder_successor(&right_node, py)?;
+                            current_node.value = successor_val.clone_ref(py);
+                            current_node.count = successor_count;
+
+                            current_node.right = Self::remove_node_internal(py, right_node, &successor_val)?;
+
+                            current_node.left = Some(left_node);
+                            Self::update_height(&mut current_node);
+                            *node = Self::rebalance_node(py, current_node)?;
+                        }
+                    }
+
+                    return Ok(Some(removed_value));
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn remove_node_internal(py: Python, node: Box<AVLNode>, value: &PyObject) -> PyResult<Option<Box<AVLNode>>> {
+        let mut current_node = Some(node);
+        Self::remove_node(py, &mut current_node, value)?;
+        Ok(current_node)
+    }
+
+    fn rebalance_node(py: Python, mut node: Box<AVLNode>) -> PyResult<Option<Box<AVLNode>>> {
+        Self::update_height(&mut node);
+        let balance = Self::balance_factor(&node);
+
+        if balance > 1 {
+            if Self::balance_factor(node.left.as_ref().unwrap()) >= 0 {
+                // Left-Left Rotation
+                let mut boxed_node = Some(node);
+                Self::right_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            } else {
+                // Left-Right Rotation
+                if let Some(left_node) = node.left.take() {
+                    let mut obj = Some(left_node);
+                    Self::left_rotation(py, &mut obj);
+                    node.left = obj;
+                }
+                let mut boxed_node = Some(node);
+                Self::right_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            }
+        }
+
+        if balance < -1 {
+            if Self::balance_factor(node.right.as_ref().unwrap()) >= 0 {
+                // Right-Right Rotation
+                let mut boxed_node = Some(node);
+                Self::left_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            } else {
+                // Right-Left Rotation
+                if let Some(right_node) = node.right.take() {
+                    let mut obj = Some(right_node);
+                    Self::right_rotation(py, &mut obj);
+                    node.left = obj;
+                }
+                let mut boxed_node = Some(node);
+                Self::left_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            }
+        }
+
+        Ok(Some(node))
+    }
+
+    fn inorder_successor(node: &Box<AVLNode>, py: Python) -> PyResult<(PyObject, usize)> {
+        let mut current_node = node;
+        while let Some(ref left_node) = current_node.left {
+            current_node = left_node;
+        }
+        Ok((current_node.value.clone_ref(py), current_node.count))
+    }
 
 }
 
@@ -238,7 +352,13 @@ impl AVLTree {
     }
 
     pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
-        
+        let result = Self::remove_node(py, &mut self.root, &value)?;
+        if let Some(val) = result {
+            self.size -= 1;
+            Ok(val)
+        } else {
+            Err(PyValueError::new_err("Value not found in the current BST"))
+        }
     }
 
     pub fn prune(&mut self, _py: Python) -> PyResult<()> {
@@ -402,5 +522,4 @@ impl AVLTree {
         self.root = None;
         self.size = 0;
     }
- 
 }
