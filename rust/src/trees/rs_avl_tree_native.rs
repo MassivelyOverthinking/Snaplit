@@ -361,10 +361,6 @@ impl AVLTree {
         }
     }
 
-    pub fn prune(&mut self, _py: Python) -> PyResult<()> {
-
-    }
-
     pub fn peek_root(&self, py: Python) -> PyResult<PyObject> {
         match self.root.as_ref() {
             Some(node) => Ok(node.value.clone_ref(py)),
@@ -427,11 +423,30 @@ impl AVLTree {
     }
 
     pub fn at_depth(&self, py: Python, value: PyObject) -> PyResult<usize> {
-        
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in the BST"));
+        }
+
+        let mut count = 0;
+        let mut current_node = self.root.as_ref();
+        while let Some(node) = current_node {
+            match Self::comparison(py, value.clone(), node.value.clone())? {
+                Ordering::Less => current_node = node.left.as_ref(),
+                Ordering::Greater => current_node = node.right.as_ref(),
+                Ordering::Equal => return Ok(count)
+            }
+            count += 1;
+        }
+        Err(PyValueError::new_err("Value not found in the Binary Search Tree"))
     }
 
-    pub fn height(&self) -> usize {
+    pub fn height(&self) -> PyResult<usize> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
 
+        let result = Self::get_height(&self.root);
+        return Ok(result);
     }
 
     pub fn size(&self) -> usize {
