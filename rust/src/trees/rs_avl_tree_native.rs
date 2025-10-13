@@ -2,8 +2,8 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::PyObject;
-use core::error;
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 
 struct AVLNode {
     value: PyObject,
@@ -58,6 +58,65 @@ impl AVLTree {
     fn balance_factor(node: &AVLNode) {
         Self::get_height(&node.left) - Self::get_height(&node.right);
     }
+
+    fn left_rotation(py: Python, node: &Option<Box<AVLNode>>) {
+
+    }
+
+    fn right_rotation(py: Python, node: &Option<Box<AVLNode>>) {
+        
+    }
+
+    fn inorder_traversal(py: Python, node: &Option<Box<AVLNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
+        if let Some(ref boxed_node) = node {
+
+            Self::inorder_traversal(py, &boxed_node.left, acc, duplicate);
+            
+            if duplicate {
+                for _ in 0..boxed_node.count {
+                    acc.push(boxed_node.value.clone_ref(py));
+                }
+            } else {
+                acc.push(boxed_node.value.clone_ref(py));
+            }
+
+            Self::inorder_traversal(py, &boxed_node.right, acc, duplicate);
+        }
+    }
+
+    fn preorder_traversal(py: Python, node: &Option<Box<AVLNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
+        if let Some(ref boxed_node) = node {
+            
+            if duplicate {
+                for _ in 0..boxed_node.count {
+                    acc.push(boxed_node.value.clone_ref(py));
+                }
+            } else {
+                acc.push(boxed_node.value.clone_ref(py));
+            }
+
+            Self::preorder_traversal(py, &boxed_node.left, acc, duplicate);
+            Self::preorder_traversal(py, &boxed_node.right, acc, duplicate);
+        }
+    }
+
+    fn postorder_traversal(py: Python, node: &Option<Box<AVLNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
+        if let Some(ref boxed_node) = node {
+
+            Self::postorder_traversal(py, &boxed_node.left, acc, duplicate);
+            Self::postorder_traversal(py, &boxed_node.right, acc, duplicate);
+            
+            if duplicate {
+                for _ in 0..boxed_node.count {
+                    acc.push(boxed_node.value.clone_ref(py));
+                }
+            } else {
+                acc.push(boxed_node.value.clone_ref(py));
+            }
+        }
+    }
+
+
 }
 
 #[pymethods]
@@ -72,7 +131,30 @@ impl AVLTree {
     }
 
     pub fn add(&mut self, py: Python, value: PyObject) -> PyResult<()> {
-        
+        let mut current_node = &mut self.root;
+
+        while let Some(node) = current_node {
+            match Self::comparison(py, value.clone(), node.value.clone())? {
+                Ordering::Less => {
+                    current_node = &mut node.left
+                }
+                Ordering::Greater => {
+                    current_node = &mut node.right
+                }
+                Ordering::Equal => {
+                    if self.allow_duplicates {
+                        node.count += 1;
+                        self.size += 1;
+                    }
+                    return Ok(());
+                }
+            }
+        }
+
+        *current_node = Some(Box::new(AVLNode::new(value)));
+        self.size += 1;
+        Ok(())
+
     }
 
     pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
@@ -107,7 +189,11 @@ impl AVLTree {
     }
 
     pub fn extend(&mut self, py: Python, iterable: &PyList) -> PyResult<()> {
-
+        for item in iterable.iter() {
+            let obj = item.extract()?;
+            self.add(py, obj)?;
+        }
+        Ok(())
     }
 
     pub fn min(&self, py: Python) -> PyResult<PyObject> {
@@ -157,23 +243,79 @@ impl AVLTree {
     }
 
     pub fn inorder_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
 
+        let mut elements = Vec::with_capacity(self.size);
+        Self::inorder_traversal(py, &self.root, &mut elements, self.allow_duplicates);
+        Ok(PyList::new(py, elements))
     }
 
     pub fn preorder_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
-        
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
+
+        let mut elements = Vec::with_capacity(self.size);
+        Self::preorder_traversal(py, &self.root, &mut elements, self.allow_duplicates);
+        Ok(PyList::new(py, elements))
     }
 
     pub fn postorder_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
-        
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
+
+        let mut elements = Vec::with_capacity(self.size);
+        Self::postorder_traversal(py, &self.root, &mut elements, self.allow_duplicates);
+        Ok(PyList::new(py, elements))
     }
 
     pub fn bfs_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
-        
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
+
+        let mut results = Vec::new();
+        let mut queue = VecDeque::new();
+
+        if let Some(ref root_node) = self.root {
+            queue.push_back(root_node);
+        }
+
+        while let Some(current_node) = queue.pop_front() {
+            if self.allow_duplicates {
+                for _ in 0..current_node.count {
+                    results.push(current_node.value.clone_ref(py));
+                }
+            } else {
+                results.push(current_node.value.clone_ref(py));
+            }
+
+            if let Some(ref left_node) = current_node.left {
+                queue.push_back(left_node);
+            }
+            if let Some(ref right_node) = current_node.right {
+                queue.push_back(right_node);
+            }
+        }
+        Ok(PyList::new(py, results))
     }
 
-    pub fn copy(&mut self, py: Python) -> PyResult<AVLTree> {
+    pub fn copy(&mut self, py: Python) -> PyResult<PyObject> {
+        if self.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in AVL Tree"));
+        }
 
+        let mut new_tree = AVLTree::new(self.allow_duplicates);
+        let tree_list = self.bfs_list(py)?;
+
+        for item in tree_list.iter() {
+            let obj = item.extract()?;
+            new_tree.add(py, obj)?;
+        }
+        Py::new(py, new_tree).map(|py_obj| py_obj.to_object(py))
     }
 
     pub fn clear(&mut self) {
