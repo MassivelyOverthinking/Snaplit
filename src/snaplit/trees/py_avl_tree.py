@@ -137,8 +137,8 @@ class AVLTree():
     False
     """
 
-    def __init__(self, allow_duplicatess: bool = False):
-        self._inner = _RustAVL(allow_duplicatess=allow_duplicatess)
+    def __init__(self, allow_duplicates: bool = False):
+        self._inner = _RustAVL(allow_duplicates=allow_duplicates)
 
     def add(self, value: Any) -> None:
         self._inner.add(value)
