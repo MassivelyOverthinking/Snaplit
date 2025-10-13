@@ -48,23 +48,56 @@ impl AVLTree {
         }
     }
 
-    fn get_height(node: &Option<Box<AVLNode>>) -> i32 {
-        match node {
-            Some(ref boxed_node) => boxed_node.height as i32,
-            None => 0,
+    fn get_height(node: &Option<Box<AVLNode>>) -> usize {
+        return node.as_ref().map_or(0, |n| n.height);
+    }
+
+    fn update_height(node: &mut Box<AVLNode>) {
+        let left_height = Self::get_height(&node.left);
+        let right_height = Self::get_height(&node.right);
+        node.height = 1 + left_height.max(right_height);
+    }
+
+    fn balance_factor(node: &Box<AVLNode>) -> isize {
+        let left = Self::get_height(&node.left) as isize;
+        let right = Self::get_height(&node.right) as isize;
+        left - right
+    }
+
+    fn right_rotation(_py: Python, node: &mut Option<Box<AVLNode>>) {
+        if let Some(mut x_node) = node.take() {
+            if let Some(mut y_node) = x_node.left.take() {
+                let t2 = y_node.right.take();
+
+                y_node.right = Some(x_node);
+                y_node.right.as_mut().unwrap().left = t2;
+
+                Self::update_height(y_node.right.as_mut().unwrap());
+                Self::update_height(&mut y_node);
+
+                *node = Some(y_node);
+            } else {
+                *node = Some(x_node);
+            }
         }
     }
 
-    fn balance_factor(node: &AVLNode) {
-        Self::get_height(&node.left) - Self::get_height(&node.right);
-    }
+    fn left_rotation(_py: Python, node: &mut Option<Box<AVLNode>>) {
+        if let Some(mut x_node) = node.take() {
+            if let Some(mut y_node) = x_node.right.take() {
+                let t2 = y_node.left.take();
 
-    fn left_rotation(py: Python, node: &Option<Box<AVLNode>>) {
+                y_node.left = Some(x_node);
+                y_node.left.as_mut().unwrap().right = t2;
 
-    }
+                Self::update_height(y_node.left.as_mut().unwrap());
+                Self::update_height(&mut y_node);
 
-    fn right_rotation(py: Python, node: &Option<Box<AVLNode>>) {
-        
+                *node = Some(y_node);
+            } else {
+                *node = Some(x_node);
+            }
+        }
     }
 
     fn inorder_traversal(py: Python, node: &Option<Box<AVLNode>>, acc: &mut Vec<PyObject>, duplicate: bool) {
@@ -116,6 +149,74 @@ impl AVLTree {
         }
     }
 
+    fn insert(py: Python, node: Option<Box<AVLNode>>, value: &PyObject, duplicate: bool) -> PyResult<Option<Box<AVLNode>>> {
+        if let Some(mut n_node) = node {
+            match Self::comparison(py, value.clone(), n_node.value.clone())? {
+                Ordering::Less => {
+                    n_node.left = Self::insert(py, n_node.left, value, duplicate)?;
+                }
+                Ordering::Greater => {
+                    n_node.right = Self::insert(py, n_node.right, value, duplicate)?;
+                }
+                Ordering::Equal => {
+                    if duplicate {
+                        n_node.count += 1;
+                        return Ok(Some(n_node));
+                    } else {
+                        return Ok(Some(n_node));
+                    }
+                }
+            }
+            Self::update_height(&mut n_node);
+            let balance = Self::balance_factor(&n_node);
+
+            let cmp_left = n_node.left.as_ref().map(|left| {
+                Self::comparison(py, value.clone(), left.value.clone())
+            }).transpose()?;
+
+            let cmp_right = n_node.right.as_ref().map(|right| {
+                Self::comparison(py, value.clone(), right.value.clone())
+            }).transpose()?;
+
+            if balance > 1 && cmp_left == Some(Ordering::Less) {
+                let mut boxed_node = Some(n_node);
+                Self::right_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            }
+
+            if balance < -1 && cmp_right == Some(Ordering::Greater) {
+                let mut boxed_node = Some(n_node);
+                Self::left_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            }
+
+            if balance > 1 && cmp_left == Some(Ordering::Greater) {
+                let mut left_subtree = n_node.left.take();
+                Self::left_rotation(py, &mut left_subtree);
+                n_node.left = left_subtree;
+
+                let mut boxed_node = Some(n_node);
+                Self::right_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            }
+
+            if balance > 1 && cmp_right == Some(Ordering::Less) {
+                let mut right_subtree = n_node.right.take();
+                Self::right_rotation(py, &mut right_subtree);
+                n_node.right = right_subtree;
+
+                let mut boxed_node = Some(n_node);
+                Self::left_rotation(py, &mut boxed_node);
+                return Ok(boxed_node);
+            }
+
+            Ok(Some(n_node))
+        } else {
+            Ok(Some(Box::new(AVLNode::new(value.clone()))))
+        }
+
+    }
+
 
 }
 
@@ -131,30 +232,9 @@ impl AVLTree {
     }
 
     pub fn add(&mut self, py: Python, value: PyObject) -> PyResult<()> {
-        let mut current_node = &mut self.root;
-
-        while let Some(node) = current_node {
-            match Self::comparison(py, value.clone(), node.value.clone())? {
-                Ordering::Less => {
-                    current_node = &mut node.left
-                }
-                Ordering::Greater => {
-                    current_node = &mut node.right
-                }
-                Ordering::Equal => {
-                    if self.allow_duplicates {
-                        node.count += 1;
-                        self.size += 1;
-                    }
-                    return Ok(());
-                }
-            }
-        }
-
-        *current_node = Some(Box::new(AVLNode::new(value)));
+        self.root = AVLTree::insert(py, self.root.take(), &value, self.allow_duplicates)?;
         self.size += 1;
         Ok(())
-
     }
 
     pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
