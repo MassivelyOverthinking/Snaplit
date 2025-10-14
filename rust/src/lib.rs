@@ -7,6 +7,7 @@ mod trees;
 // imports from rust folders (Linear)
 use linear::linked_list_native::LinkedList;
 use linear::stack_native::Stack;
+use linear::rs_array_stack_native::ArrayStack;
 use linear::queue_native::Queue;
 use linear::ring_buffer_native::RingBuffer;
 use linear::circular_buffer_native::CircularBuffer;
@@ -22,6 +23,7 @@ use trees::rs_redblack_tree_native::RedBlackTree;
 pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<LinkedList>()?;
     m.add_class::<Stack>()?;
+    m.add_class::<ArrayStack>()?;
     m.add_class::<Queue>()?;
     m.add_class::<RingBuffer>()?;
     m.add_class::<CircularBuffer>()?;
