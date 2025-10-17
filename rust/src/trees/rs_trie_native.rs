@@ -41,6 +41,28 @@ impl Trie {
             Self::get_words(child_node, elements);
         } 
     }
+
+    fn get_word_count<'py>(node: &TrieNode, count: &mut usize) {
+        if node.terminal {
+            if let Some(ref _entry) = node.value {
+                *count += 1;
+            }
+        }
+
+        for (_, child_node) in &node.children {
+            Self::get_word_count(child_node, count);
+        } 
+    }
+
+    fn find_longest_terminal(py: Python, node: &TrieNode, longest: &mut Option<PyObject>) {
+        if node.terminal {
+
+        }
+
+        for (_, child_node) in &node.children {
+            Self::find_longest_terminal(py, child_node, longest);
+        }
+    }
 }
 
 #[pymethods]
@@ -80,6 +102,10 @@ impl Trie {
         }
         self.words_count += 1;
         Ok(())
+    }
+
+    pub fn remove(&mut self, py: Python, word: PyObject) -> PyResult<()> {
+
     }
 
     pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
@@ -157,6 +183,79 @@ impl Trie {
         }
 
         Ok(PyList::new(py, elements))
+    }
+
+    pub fn extend(&mut self, py: Python, iterable: &PyList) -> PyResult<()> {
+        for item in iterable.iter() {
+            let obj = item.extract()?;
+            self.insert(py, obj)?;
+        }
+        Ok(())
+    }
+
+    pub fn longest_word(&self, py: Python) -> PyResult<PyObject> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No elements currently available in Trie structure"));
+        }
+
+        let mut lng_word = None;
+        Self::find_longest_terminal(py, &self.root, &mut lng_word);
+
+        Ok(lng_word)
+    }
+
+    pub fn get_prefixes<'py>(&self, py: Python<'py>, word: PyObject) -> PyResult<&'py PyList> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No keys currently available in Trie's root node"));
+        }
+
+        let py_any = word.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
+
+        let mut elements: Vec<PyObject> = Vec::new();
+        let mut current_node = &self.root;
+        let py_str: &str = word.extract(py)?;
+
+        for item in py_str.chars() {
+            if current_node.terminal {
+                match &current_node.value {
+                    Some(final_value) => elements.push(final_value.clone()),
+                    None => return Err(PyValueError::new_err("Corrupted Trie structure"))
+                }
+            }
+            match current_node.children.get(&item) {
+                Some(child_node) => current_node = child_node,
+                None => return Err(PyValueError::new_err("Prefix not present in Trie structure"))
+            }
+        }
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn prefix_count(&self, py: Python, prefix: PyObject) -> PyResult<usize> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No keys currently available in Trie's root node"));
+        }
+
+        let py_any = prefix.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
+
+        let mut count: usize = 0;
+        let mut current_node = &self.root;
+        let py_str: &str = prefix.extract(py)?;
+
+        for item in py_str.chars() {
+            match current_node.children.get(&item) {
+                Some(child_node) => current_node = child_node,
+                None => return Err(PyValueError::new_err("Prefix not present in Trie structure")),
+            }
+        }
+
+        Self::get_word_count(current_node, &mut count);
+        Ok(count)
     }
 
     pub fn base_keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
