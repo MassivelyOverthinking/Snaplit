@@ -1,9 +1,8 @@
-use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::{prelude::*, PyTypeInfo};
+use pyo3::types::{PyList, PyString};
 use pyo3::PyObject;
 
 #[derive(Clone)]
@@ -26,6 +25,7 @@ impl TrieNode {
 #[pyclass]
 pub struct Trie {
     root: TrieNode,
+    words_count: usize,
     size: usize,
 }
 
@@ -39,11 +39,16 @@ impl Trie {
     pub fn new(py: Python) -> Self {
         Self {
             root: TrieNode::new(py.None().into_py(py)),
+            words_count: 0,
             size: 0
         }
     }
 
     pub fn insert(&mut self, py: Python, value: PyObject) -> PyResult<()> {
+        let py_any = value.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
         
         let mut current_node = &mut self.root;
         let py_str: &str = value.extract(py)?;
@@ -63,6 +68,55 @@ impl Trie {
                 }
             };
         }
+        self.words_count += 1;
+        Ok(())
+    }
+
+    pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
+        let py_any = value.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
+
+        let mut current_node = &self.root;
+        let py_str: &str = value.extract(py)?;
+
+        for item in py_str.chars() {
+            match current_node.children.get(&item) {
+                Some(node_value) => {
+                    current_node = node_value;
+                }
+                None => return Ok(false)
+            }
+        }
+        Ok(current_node.terminal)
+    }
+
+    pub fn base_keys(&self, py: Python) -> PyResult<Py<PyList>> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("no keys currently available in Trie's root node"));
+        }
+
+        let chars: Vec<String> = self.root.children.keys().map(|ch| ch.to_string()).collect();
+        Ok(PyList::new(py, chars).into())
+    }
+
+    pub fn node_size(&self) -> PyResult<usize> {
+        Ok(self.size)
+    }
+
+    pub fn word_size(&self) -> PyResult<usize> {
+        Ok(self.words_count)
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        Ok(self.size == 0)
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        self.root.children.clear();
+        self.words_count = 0;
+        self.size = 0;
         Ok(())
     }
 }
