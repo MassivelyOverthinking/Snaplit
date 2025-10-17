@@ -120,19 +120,52 @@ impl Trie {
         Ok(true)
     }
 
-    pub fn words(&self, py: Python) -> PyResult<Py<PyList>> {
+    pub fn prefixed<'py>(&self, py: Python<'py>, prefix: PyObject) -> PyResult<&'py PyList> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No elements currently available in Trie structure"));
+        }
+
+        let py_any = prefix.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
+
         let mut elements: Vec<PyObject> = Vec::new();
-        Self::get_words(&self.root, &mut elements);
-        Ok(PyList::new(py, elements).into())
+        let mut current_node = &self.root;
+        let py_str: &str = prefix.extract(py)?;
+
+        for item in py_str.chars() {
+            match current_node.children.get(&item) {
+                Some(child_node) => current_node = child_node,
+                None => return Err(PyValueError::new_err("Prefix not present in Trie structure")),
+            }
+        }
+
+        Self::get_words(current_node, &mut elements);
+        Ok(PyList::new(py, elements))
     }
 
-    pub fn base_keys(&self, py: Python) -> PyResult<Py<PyList>> {
+    pub fn words<'py>(&self, py: Python<'py>, sort: Option<bool>) -> PyResult<&'py PyList> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No elements currently available in Trie structure"));
+        }
+
+        let mut elements: Vec<PyObject> = Vec::new();
+        Self::get_words(&self.root, &mut elements);
+        if sort.unwrap_or(false) {
+            elements.sort();
+        }
+
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn base_keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         if self.size == 0 {
             return Err(PyValueError::new_err("No keys currently available in Trie's root node"));
         }
 
         let chars: Vec<String> = self.root.children.keys().map(|ch| ch.to_string()).collect();
-        Ok(PyList::new(py, chars).into())
+        Ok(PyList::new(py, chars))
     }
 
     pub fn node_size(&self) -> PyResult<usize> {
@@ -145,6 +178,21 @@ impl Trie {
 
     pub fn is_empty(&self) -> PyResult<bool> {
         Ok(self.size == 0)
+    }
+
+    pub fn copy(&self, py: Python) -> PyResult<PyObject> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No elements currently available in Trie structure"));
+        }
+
+        let mut new_trie = Trie::new(py);
+        let value_list = self.words(py, sort)?;
+
+        for item in value_list.iter() {
+            let obj = item.extract()?;
+            new_trie.insert(py, obj)?;
+        }
+        Py::new(py, new_trie).map(|py_obj| py_obj.to_object(py))
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
