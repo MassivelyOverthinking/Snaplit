@@ -30,7 +30,17 @@ pub struct Trie {
 }
 
 impl Trie {
+    fn get_words<'py>(node: &TrieNode, elements: &mut Vec<PyObject>) {
+        if node.terminal {
+            if let Some(ref entry) = node.value {
+                elements.push(entry.clone());
+            }
+        }
 
+        for (_, child_node) in &node.children {
+            Self::get_words(child_node, elements);
+        } 
+    }
 }
 
 #[pymethods]
@@ -92,9 +102,33 @@ impl Trie {
         Ok(current_node.terminal)
     }
 
+    pub fn starts_with(&self, py: Python, prefix: PyObject) -> PyResult<bool> {
+        let py_any = prefix.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
+
+        let py_str: &str = prefix.extract(py)?;
+        let mut current_node = &self.root;
+
+        for item in py_str.chars() {
+            match current_node.children.get(&item) {
+                Some(child_node) => current_node = child_node,
+                None => return Ok(false),
+            }
+        }
+        Ok(true)
+    }
+
+    pub fn words(&self, py: Python) -> PyResult<Py<PyList>> {
+        let mut elements: Vec<PyObject> = Vec::new();
+        Self::get_words(&self.root, &mut elements);
+        Ok(PyList::new(py, elements).into())
+    }
+
     pub fn base_keys(&self, py: Python) -> PyResult<Py<PyList>> {
         if self.size == 0 {
-            return Err(PyValueError::new_err("no keys currently available in Trie's root node"));
+            return Err(PyValueError::new_err("No keys currently available in Trie's root node"));
         }
 
         let chars: Vec<String> = self.root.children.keys().map(|ch| ch.to_string()).collect();
