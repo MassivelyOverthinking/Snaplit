@@ -8,7 +8,7 @@ from typing import Any
 
 class BloomFilter():
     """
-    A sspace-efficient probabilistic data structure for optimized membership checking.
+    A space-efficient probabilistic data structure for optimized membership checking.
 
     This Bloom Filter class implements a Rust-powered backend to enable fast insertion and membership
     checks with configurable false-positive probability and compact memory usage.
