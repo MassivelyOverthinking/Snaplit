@@ -21,6 +21,9 @@ use trees::rs_avl_tree_native::AVLTree;
 use trees::rs_redblack_tree_native::RedBlackTree;
 use trees::rs_trie_native::Trie;
 
+// imports from rust folders (Probability)
+use probability::rs_bloom_filter_native::BloomFilter;
+
 // Final export to Python
 #[pymodule]
 pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -35,5 +38,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<AVLTree>()?;
     m.add_class::<RedBlackTree>()?;
     m.add_class::<Trie>()?;
+    m.add_class::<BloomFilter>()?;
     Ok(())
 }
