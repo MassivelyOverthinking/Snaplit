@@ -3,6 +3,8 @@ use pyo3::prelude::*;
 // rust mods
 mod linear;
 mod trees;
+mod probability;
+mod other;
 
 // imports from rust folders (Linear)
 use linear::linked_list_native::LinkedList;
