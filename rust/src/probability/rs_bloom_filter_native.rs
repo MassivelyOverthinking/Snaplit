@@ -1,9 +1,8 @@
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
 use pyo3::PyObject;
 use crate::other::rs_bit_array::BitArray;
 
+#[allow(dead_code)]
 #[pyclass]
 pub struct BloomFilter {
     probability: f64,
@@ -54,5 +53,25 @@ impl BloomFilter {
             self.array.set(index);
         }
         Ok(())
+    }
+
+    pub fn contains(&self, py: Python<'_>, item: PyObject) -> PyResult<bool> {
+        let py_hash = item.as_ref(py).hash()?;
+
+        let h1 = py_hash as usize;
+        let h2 = (h1 >> 17) | (h1 << 47);
+
+        for i in 0..self.hash_count {
+            let combined_hash = h1.wrapping_add(i).wrapping_mul(h2);
+            let index = combined_hash % self.size;
+            if !self.array.get(index) {
+                return Ok(false);
+            }
+        }
+        return Ok(true);
+    }
+
+    pub fn clear(&mut self) {
+        self.array.clear_all();
     }
 }

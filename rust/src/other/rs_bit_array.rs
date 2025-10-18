@@ -5,6 +5,7 @@ pub struct BitArray {
     len: usize,
 }
 
+#[allow(dead_code)]
 impl BitArray {
     pub fn new(len: usize) -> Self {
         let size = (len + 63) / 64;
@@ -25,7 +26,7 @@ impl BitArray {
         self.data[word] |= 1 << bit;
     }
 
-    pub fn get(&mut self, index: usize) -> bool {
+    pub fn get(&self, index: usize) -> bool {
         assert!(index < self.len, "index out of bounds");
         let word = index / 64;
         let bit = index % 64;
