@@ -116,7 +116,7 @@ class Trie():
     def remove(self, word: str) -> None:
         if not isinstance(word, str):
             raise ValueError("Word must be of Type: str")
-        self._inner.remove()
+        self._inner.remove(word)
 
     def contains(self, word: str) -> bool:
         if not isinstance(word, str):
