@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use pyo3::exceptions::PyValueError;
 use pyo3::{prelude::*, PyTypeInfo};
 use pyo3::types::{PyList, PyString};
@@ -54,13 +54,18 @@ impl Trie {
         } 
     }
 
-    fn find_longest_terminal(py: Python, node: &TrieNode, longest: &mut Option<PyObject>) {
-        if node.terminal {
+    fn delete_nodes(mut stack: Vec<(char, *mut TrieNode)>) {
+        while let Some((char_key, parent_node)) = stack.pop() {
+            unsafe {
+                let parent = &mut *parent_node;
 
-        }
-
-        for (_, child_node) in &node.children {
-            Self::find_longest_terminal(py, child_node, longest);
+                if let Some(child_node) = parent.children.get(&char_key) {
+                    if child_node.terminal || !child_node.children.is_empty() {
+                        break;
+                    }
+                }
+                parent.children.remove(&char_key); 
+            }
         }
     }
 }
@@ -105,7 +110,40 @@ impl Trie {
     }
 
     pub fn remove(&mut self, py: Python, word: PyObject) -> PyResult<()> {
+        if self.size == 0 {
+            return Err(PyValueError::new_err("No elements currently available in Trie structure"));
+        }
 
+        let py_any = word.as_ref(py);
+        if !py_any.is_instance(PyString::type_object(py))? {
+            return Err(PyValueError::new_err("Trie class only supports Strings"));
+        }
+
+        let mut current_node = &mut self.root;
+        let py_str: &str = word.extract(py)?;
+        let mut stack: Vec<(char, *mut TrieNode)> = Vec::new();
+
+        for item in py_str.chars() {
+            match current_node.children.get_mut(&item) {
+                Some(child_node) => {
+                    let raw_pointer = &mut **child_node as *mut TrieNode;
+                    stack.push((item, raw_pointer));
+                    current_node = &mut **child_node
+                },
+                None => return Err(PyValueError::new_err("Word not found in Trie structure"))
+            }
+        }
+
+        if !current_node.terminal {
+            return Err(PyValueError::new_err("Word not found in Trie structure"));
+        }
+
+        current_node.terminal = false;
+        self.size -= 1;
+
+        Self::delete_nodes(stack);
+
+        Ok(())
     }
 
     pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
@@ -171,16 +209,13 @@ impl Trie {
         Ok(PyList::new(py, elements))
     }
 
-    pub fn words<'py>(&self, py: Python<'py>, sort: Option<bool>) -> PyResult<&'py PyList> {
+    pub fn words<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         if self.size == 0 {
             return Err(PyValueError::new_err("No elements currently available in Trie structure"));
         }
 
         let mut elements: Vec<PyObject> = Vec::new();
         Self::get_words(&self.root, &mut elements);
-        if sort.unwrap_or(false) {
-            elements.sort();
-        }
 
         Ok(PyList::new(py, elements))
     }
@@ -191,17 +226,6 @@ impl Trie {
             self.insert(py, obj)?;
         }
         Ok(())
-    }
-
-    pub fn longest_word(&self, py: Python) -> PyResult<PyObject> {
-        if self.size == 0 {
-            return Err(PyValueError::new_err("No elements currently available in Trie structure"));
-        }
-
-        let mut lng_word = None;
-        Self::find_longest_terminal(py, &self.root, &mut lng_word);
-
-        Ok(lng_word)
     }
 
     pub fn get_prefixes<'py>(&self, py: Python<'py>, word: PyObject) -> PyResult<&'py PyList> {
@@ -285,7 +309,7 @@ impl Trie {
         }
 
         let mut new_trie = Trie::new(py);
-        let value_list = self.words(py, sort)?;
+        let value_list = self.words(py)?;
 
         for item in value_list.iter() {
             let obj = item.extract()?;
