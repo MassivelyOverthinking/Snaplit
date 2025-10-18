@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::{prelude::*, PyTypeInfo};
 use pyo3::types::{PyList, PyString};
@@ -54,7 +54,7 @@ impl Trie {
         } 
     }
 
-    fn delete_nodes(mut stack: Vec<(char, *mut TrieNode)>) {
+    fn delete_nodes(&mut self, mut stack: Vec<(char, *mut TrieNode)>) {
         while let Some((char_key, parent_node)) = stack.pop() {
             unsafe {
                 let parent = &mut *parent_node;
@@ -64,7 +64,8 @@ impl Trie {
                         break;
                     }
                 }
-                parent.children.remove(&char_key); 
+                parent.children.remove(&char_key);
+                self.size -= 1;
             }
         }
     }
@@ -139,9 +140,9 @@ impl Trie {
         }
 
         current_node.terminal = false;
-        self.size -= 1;
+        self.words_count -= 1;
 
-        Self::delete_nodes(stack);
+        Self::delete_nodes(self, stack);
 
         Ok(())
     }
