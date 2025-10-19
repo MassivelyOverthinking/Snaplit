@@ -72,7 +72,7 @@ impl CuckooFilter {
     }
 
     fn first_index(&self, hash: u64) -> usize {
-        (hash as usize) & self.buckets.len()
+        (hash as usize) % self.buckets.len()
     }
 
     fn second_index(&mut self, index: usize, fingerprint: u16) -> usize {
