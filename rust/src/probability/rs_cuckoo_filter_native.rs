@@ -144,6 +144,30 @@ impl CuckooFilter {
         Ok(false) // Fingerprint entry failed to insert after all retry attempts
     }
 
+    pub fn contains(&mut self, py: Python<'_>, item: PyObject) -> PyResult<bool> {
+        let py_hash = item.as_ref(py).hash()? as u64;
+        let fingerprint = self.produce_fingerprint(py_hash);
+        let index_1 = self.first_index(py_hash);
+        let index_2 = self.second_index(index_1, fingerprint);
+
+        Ok(
+            self.buckets[index_1].contains(fingerprint) || self.buckets[index_2].contains(fingerprint)
+        )
+    }
+
+    pub fn delete(&mut self, py: Python<'_>, item: PyObject) -> PyResult<bool> {
+        let py_hash = item.as_ref(py).hash()? as u64;
+        let fingerprint = self.produce_fingerprint(py_hash);
+        let index_1 = self.first_index(py_hash);
+        let index_2 = self.second_index(index_1, fingerprint);
+
+        if self.buckets[index_1].delete(fingerprint) || self.buckets[index_2].delete(fingerprint) {
+            self.size -= 1;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     pub fn len(&self) -> usize {
         self.size
     }

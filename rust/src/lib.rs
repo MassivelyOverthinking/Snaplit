@@ -23,6 +23,7 @@ use trees::rs_trie_native::Trie;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
+use probability::rs_cuckoo_filter_native::CuckooFilter;
 
 // Final export to Python
 #[pymodule]
@@ -39,5 +40,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<RedBlackTree>()?;
     m.add_class::<Trie>()?;
     m.add_class::<BloomFilter>()?;
+    m.add_class::<CuckooFilter>()?;
     Ok(())
 }
