@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 // rust mods
 mod linear;
 mod trees;
+mod graph;
 mod probability;
 mod other;
 
@@ -20,6 +21,9 @@ use trees::rs_binary_tree_native::BinarySearchTree;
 use trees::rs_avl_tree_native::AVLTree;
 use trees::rs_redblack_tree_native::RedBlackTree;
 use trees::rs_trie_native::Trie;
+
+// imports from rust folders (Graph)
+use graph::rs_base_graph_native::BaseGraph;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
@@ -41,5 +45,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Trie>()?;
     m.add_class::<BloomFilter>()?;
     m.add_class::<CuckooFilter>()?;
+    m.add_class::<BaseGraph>()?;
     Ok(())
 }
