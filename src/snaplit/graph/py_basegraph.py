@@ -168,7 +168,7 @@ class BaseGraph():
     def edges(self) -> List[Tuple[int, Any]]:
         return self._inner.edges()
     
-    def BFS_list(self, start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[int, Any]]:
+    def BFS_list(self, start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[Tuple[int, Any]]]:
         if not isinstance(start_id, int):
             raise TypeError("Starting ID must be of Type: int")
         if not isinstance(return_value, bool):
@@ -176,7 +176,7 @@ class BaseGraph():
         
         return self._inner.bfs_list(start_id, return_value)
     
-    def DFS_list(self, start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[int, Any]]:
+    def DFS_list(self, start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[Tuple[int, Any]]]:
         if not isinstance(start_id, int):
             raise TypeError("Starting ID must be of Type: int")
         if not isinstance(return_value, bool):
