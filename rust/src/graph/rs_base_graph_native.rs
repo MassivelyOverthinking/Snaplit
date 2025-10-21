@@ -1,10 +1,11 @@
 use std::collections::VecDeque;
-use pyo3::exceptions::PyValueError;
+use pyo3::{exceptions::PyValueError, types::PyTuple};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::PyObject;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct GraphNode {
     id: usize,
@@ -148,6 +149,32 @@ impl BaseGraph {
         Ok(())
     }
 
+    pub fn remove_edge(&mut self, x: usize, y: usize) -> PyResult<()> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        if !self.nodes.contains_key(&x) {
+            return Err(PyValueError::new_err("X node not found in current Graph"));
+        }
+
+        if !self.nodes.contains_key(&y) {
+            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        }
+
+        if self.is_connected(x, y)? {
+            let x_node = self.nodes.get_mut(&x).unwrap();
+            x_node.neighbours.remove(&y);
+        
+            let y_node = self.nodes.get_mut(&y).unwrap();
+            y_node.neighbours.remove(&x);
+
+            Ok(())
+        } else {
+            return Err(PyValueError::new_err("No connection between x and y nodes"));
+        }
+    }
+
     pub fn is_connected(&self, x: usize, y: usize) -> PyResult<bool> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
@@ -159,6 +186,10 @@ impl BaseGraph {
 
         if !self.nodes.contains_key(&y) {
             return Err(PyValueError::new_err("Y node not found in current Graph"));
+        }
+
+        if x == y {
+            return Err(PyValueError::new_err("Cannot connect nodes to oneself"));
         }
 
         let x_node = self.nodes.get(&x).unwrap();
@@ -199,7 +230,7 @@ impl BaseGraph {
         Ok((final_list).into())
     }
 
-    pub fn bfs_list<'py>(&self, py: Python<'py>, start_id: usize) -> PyResult<&'py PyList> {
+    pub fn bfs_list<'py>(&self, py: Python<'py>, start_id: usize, return_value: Option<bool>) -> PyResult<&'py PyList> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
@@ -208,6 +239,7 @@ impl BaseGraph {
             return Err(PyValueError::new_err("Index value not found in Graph"));
         }
 
+        let rtn_val = return_value.unwrap_or(false);
         let mut visited = FxHashSet::default();
         let mut id_queue = VecDeque::new();
         let mut results = Vec::new();
@@ -216,11 +248,19 @@ impl BaseGraph {
         id_queue.push_back(start_id);
 
         while let Some(current_id) = id_queue.pop_front() {
-            results.push(current_id);
-
             let node = self.nodes.get(&current_id).ok_or_else(|| {
                 PyValueError::new_err("Corrupted Graph structure: Node missing during BFS")
             })?;
+
+            if rtn_val {
+                let py_tuple = PyTuple::new(
+                    py,
+                    &[current_id.to_object(py), node.payload.clone_ref(py)]
+                );
+                results.push(py_tuple.to_object(py));
+            } else {
+                results.push(current_id.to_object(py));
+            }
 
             for neigh_id in &node.neighbours {
                 if !visited.contains(neigh_id) {
@@ -234,7 +274,7 @@ impl BaseGraph {
         Ok((final_list).into())
     }
 
-    pub fn dfs_list<'py>(&self, py: Python<'py>, start_id: usize) -> PyResult<&'py PyList> {
+    pub fn dfs_list<'py>(&self, py: Python<'py>, start_id: usize, return_value: Option<bool>) -> PyResult<&'py PyList> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
@@ -243,6 +283,7 @@ impl BaseGraph {
             return Err(PyValueError::new_err("Index value not found in Graph"));
         }
 
+        let rtn_val = return_value.unwrap_or(false);
         let mut visited = FxHashSet::default();
         let mut id_stack = VecDeque::new();
         let mut results = Vec::new();
@@ -251,11 +292,19 @@ impl BaseGraph {
         id_stack.push_back(start_id);
 
         while let Some(current_id) = id_stack.pop_back() {
-            results.push(current_id);
-
             let node = self.nodes.get(&current_id).ok_or_else(|| {
                 PyValueError::new_err("Corrupted Graph structure: Node missing during BFS")
             })?;
+
+            if rtn_val {
+                let py_tuple = PyTuple::new(
+                    py,
+                    &[current_id.to_object(py), node.payload.clone_ref(py)]
+                );
+                results.push(py_tuple.to_object(py));
+            } else {
+                results.push(current_id.to_object(py));
+            }
 
             for neigh_id in &node.neighbours {
                 if !visited.contains(neigh_id) {
@@ -302,6 +351,44 @@ impl BaseGraph {
         Ok(count / 2)
     }
 
+    pub fn has_path(&self, x: usize, y: usize) -> PyResult<bool> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        if !self.nodes.contains_key(&x) {
+            return Err(PyValueError::new_err("X node not found in current Graph"));
+        }
+
+        if !self.nodes.contains_key(&y) {
+            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        }
+
+        let mut visited = FxHashSet::default();
+        let mut id_queue = VecDeque::new();
+
+        visited.insert(x);
+        id_queue.push_back(x);
+
+        while let Some(current_id) = id_queue.pop_front() {
+            if current_id == y {
+                return Ok(true);
+            }
+
+            let node = self.nodes.get(&current_id).ok_or_else(|| {
+                PyValueError::new_err("Corrupted Graph structure: Node missing during BFS")
+            })?;
+
+            for neigh_id in &node.neighbours {
+                if !visited.contains(neigh_id) {
+                    visited.insert(*neigh_id);
+                    id_queue.push_back(*neigh_id);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub fn is_empty(&self) -> PyResult<bool> {
         if self.count == 0 {
             Ok(true)
@@ -310,7 +397,7 @@ impl BaseGraph {
         }
     }
 
-    pub fn size(&self) -> PyResult<usize> {
+    pub fn node_coutn(&self) -> PyResult<usize> {
         Ok(self.count)
     }
 
