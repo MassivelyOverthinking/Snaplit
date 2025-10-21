@@ -234,6 +234,82 @@ impl BaseGraph {
         Ok((final_list).into())
     }
 
+    pub fn dfs_list<'py>(&self, py: Python<'py>, start_id: usize) -> PyResult<&'py PyList> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        if !self.nodes.contains_key(&start_id) {
+            return Err(PyValueError::new_err("Index value not found in Graph"));
+        }
+
+        let mut visited = FxHashSet::default();
+        let mut id_stack = VecDeque::new();
+        let mut results = Vec::new();
+
+        visited.insert(start_id);
+        id_stack.push_back(start_id);
+
+        while let Some(current_id) = id_stack.pop_back() {
+            results.push(current_id);
+
+            let node = self.nodes.get(&current_id).ok_or_else(|| {
+                PyValueError::new_err("Corrupted Graph structure: Node missing during BFS")
+            })?;
+
+            for neigh_id in &node.neighbours {
+                if !visited.contains(neigh_id) {
+                    visited.insert(*neigh_id);
+                    id_stack.push_back(*neigh_id);
+                }
+            }
+        }
+
+        let final_list = PyList::new(py, results);
+        Ok((final_list).into())
+    }
+
+    pub fn degree(&self, id: usize) -> PyResult<usize> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        if !self.nodes.contains_key(&id) {
+            return Err(PyValueError::new_err("ID value not found in Graph"));
+        }
+
+        let mut count = 0;
+        let node = self.nodes.get(&id).unwrap();
+
+        for _ in node.neighbours.iter() {
+            count += 1;
+        }
+
+        Ok(count)
+    }
+
+    pub fn edge_count(&self) -> PyResult<usize> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut count = 0;
+        for (_, item) in self.nodes.iter() {
+            let num = item.neighbours.len();
+            count += num;
+        }
+
+        Ok(count / 2)
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        if self.count == 0 {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn size(&self) -> PyResult<usize> {
         Ok(self.count)
     }
