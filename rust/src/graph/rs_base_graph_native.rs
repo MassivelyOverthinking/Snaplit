@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
@@ -181,6 +182,56 @@ impl BaseGraph {
 
         let final_list = PyList::new(py, new_node.neighbours.clone());
         Ok(final_list.into())
+    }
+
+    pub fn edges<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut elements = Vec::new();
+        
+        for (num, item) in self.nodes.iter() {
+            elements.push((num, item.payload.clone_ref(py)).to_object(py));
+        }
+
+        let final_list = PyList::new(py, elements);
+        Ok((final_list).into())
+    }
+
+    pub fn bfs_list<'py>(&self, py: Python<'py>, start_id: usize) -> PyResult<&'py PyList> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        if !self.nodes.contains_key(&start_id) {
+            return Err(PyValueError::new_err("Index value not found in Graph"));
+        }
+
+        let mut visited = FxHashSet::default();
+        let mut id_queue = VecDeque::new();
+        let mut results = Vec::new();
+
+        visited.insert(start_id);
+        id_queue.push_back(start_id);
+
+        while let Some(current_id) = id_queue.pop_front() {
+            results.push(current_id);
+
+            let node = self.nodes.get(&current_id).ok_or_else(|| {
+                PyValueError::new_err("Corrupted Graph structure: Node missing during BFS")
+            })?;
+
+            for neigh_id in &node.neighbours {
+                if !visited.contains(neigh_id) {
+                    visited.insert(*neigh_id);
+                    id_queue.push_back(*neigh_id);
+                }
+            }
+        }
+
+        let final_list = PyList::new(py, results);
+        Ok((final_list).into())
     }
 
     pub fn size(&self) -> PyResult<usize> {
