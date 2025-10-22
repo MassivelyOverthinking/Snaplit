@@ -24,6 +24,7 @@ use trees::rs_trie_native::Trie;
 
 // imports from rust folders (Graph)
 use graph::rs_base_graph_native::BaseGraph;
+use graph::rs_digraph_native::Digraph;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
@@ -46,5 +47,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BloomFilter>()?;
     m.add_class::<CuckooFilter>()?;
     m.add_class::<BaseGraph>()?;
+    m.add_class::<Digraph>()?;
     Ok(())
 }
