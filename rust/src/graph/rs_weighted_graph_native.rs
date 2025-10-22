@@ -140,10 +140,10 @@ impl WeightedGraph {
             return Err(PyValueError::new_err("Y node not found in current Graph"));
         }
         
-        let x_node = self.nodes.get_mut(&x).unwrap();
+        let x_node = self.nodes.get_mut(&x).expect("X node not found!");
         x_node.neighbours.insert(y, weight);
         
-        let y_node = self.nodes.get_mut(&y).unwrap();
+        let y_node = self.nodes.get_mut(&y).expect("Y node not found!");
         y_node.neighbours.insert(x, weight);
         
         Ok(())
@@ -163,10 +163,10 @@ impl WeightedGraph {
         }
 
         if self.is_connected(x, y)? {
-            let x_node = self.nodes.get_mut(&x).unwrap();
+            let x_node = self.nodes.get_mut(&x).expect("X node not found!");
             x_node.neighbours.remove(&y);
         
-            let y_node = self.nodes.get_mut(&y).unwrap();
+            let y_node = self.nodes.get_mut(&y).expect("Y node not found");
             y_node.neighbours.remove(&x);
 
             Ok(())
@@ -192,8 +192,8 @@ impl WeightedGraph {
             return Err(PyValueError::new_err("Cannot connect nodes to oneself"));
         }
 
-        let x_node = self.nodes.get(&x).unwrap();
-        let y_node = self.nodes.get(&y).unwrap();
+        let x_node = self.nodes.get(&x).expect("X node not found!");
+        let y_node = self.nodes.get(&y).expect("Y node not found!");
         if x_node.neighbours.contains_key(&y) && y_node.neighbours.contains_key(&x) {
             Ok(true)
         } else {
@@ -204,7 +204,7 @@ impl WeightedGraph {
     pub fn get_weight(&self, x: usize, y: usize) -> PyResult<f64> {
         if self.is_connected(x, y)? {
             let node = self.nodes.get(&x).expect("No node found!");
-            return Ok(*node.neighbours.get(&y).unwrap());
+            return Ok(*node.neighbours.get(&y).expect("Weight not found in node!"));
         } else {
             return Err(PyValueError::new_err("X and Y nodes are not connected"));
         }
@@ -352,7 +352,7 @@ impl WeightedGraph {
         }
 
         let mut count = 0;
-        let node = self.nodes.get(&id).unwrap();
+        let node = self.nodes.get(&id).expect("Degree node not found!");
 
         for _ in node.neighbours.iter() {
             count += 1;
@@ -379,8 +379,6 @@ impl WeightedGraph {
 
         Ok(total)
     }
-
-
 
     pub fn edge_count(&self) -> PyResult<usize> {
         if self.nodes.is_empty() {
