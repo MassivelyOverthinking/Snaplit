@@ -7,14 +7,14 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-struct GraphNode {
+struct DigraphNode {
     id: usize,
     payload: PyObject,
     neighbours: FxHashSet<usize>,
 }
 
 #[allow(dead_code)]
-impl GraphNode {
+impl DigraphNode {
     fn new(id: usize, payload: PyObject) -> Self {
         Self {
             id: id,
@@ -26,7 +26,7 @@ impl GraphNode {
 
 #[pyclass]
 pub struct Digraph {
-    nodes: FxHashMap<usize, GraphNode>,
+    nodes: FxHashMap<usize, DigraphNode>,
     next_id: usize,
     count: usize,
 }
@@ -38,6 +38,32 @@ impl Digraph {
                 item.neighbours.remove(&id);
             }
         }
+    }
+
+    fn insert_with_id(&mut self, id: usize, payload: PyObject) {
+        let new_node = DigraphNode::new(id, payload);
+
+        self.nodes.insert(id, new_node);
+    }
+
+    fn dfs_cycle(&self, node_id: usize, visited: &mut FxHashSet<usize>, rec_stack: &mut FxHashSet<usize>) -> bool {
+
+        visited.insert(node_id);
+        rec_stack.insert(node_id);
+
+        if let Some(node) = self.nodes.get(&node_id) {
+            for &neighbour_id in &node.neighbours {
+                if !visited.contains(&neighbour_id) {
+                    if self.dfs_cycle(neighbour_id, visited, rec_stack) {
+                        return true;
+                    }
+                } else if rec_stack.contains(&neighbour_id) {
+                    return true;
+                }
+            }
+        } 
+        rec_stack.remove(&node_id);
+        false
     }
 }
 
@@ -53,7 +79,7 @@ impl Digraph {
     }
 
     pub fn insert(&mut self, item: PyObject) -> PyResult<bool> {
-        let new_node = GraphNode::new(self.next_id, item);
+        let new_node = DigraphNode::new(self.next_id, item);
 
         if self.nodes.contains_key(&self.next_id) {
             return Ok(false)
@@ -127,74 +153,75 @@ impl Digraph {
         Ok(())
     }
 
-    pub fn add_edge(&mut self, x: usize, y: usize) -> PyResult<()> {
+    pub fn add_edge(&mut self, to_id: usize, from_id: usize) -> PyResult<()> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To_id node not found in current Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From_id node not found in current Graph"));
+        }
+
+        if to_id == from_id {
+            return Err(PyValueError::new_err("Nodes cannot be connected to themselves"));
         }
         
-        let x_node = self.nodes.get_mut(&x).unwrap();
-        x_node.neighbours.insert(y);
-        
-        let y_node = self.nodes.get_mut(&y).unwrap();
-        y_node.neighbours.insert(x);
+        let from_id = self.nodes.get_mut(&from_id).unwrap();
+        from_id.neighbours.insert(to_id);
         
         Ok(())
     }
 
-    pub fn remove_edge(&mut self, x: usize, y: usize) -> PyResult<()> {
+    pub fn remove_edge(&mut self, to_id: usize, from_id: usize) -> PyResult<()> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To_id node not found in present Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From_id node not found in present Graph"));
         }
 
-        if self.is_connected(x, y)? {
-            let x_node = self.nodes.get_mut(&x).unwrap();
-            x_node.neighbours.remove(&y);
-        
-            let y_node = self.nodes.get_mut(&y).unwrap();
-            y_node.neighbours.remove(&x);
+        if to_id == from_id {
+            return Err(PyValueError::new_err("Nodes cannot be connected to themselves"));
+        }
+
+        if self.is_connected(from_id, to_id)? {
+            let from_node = self.nodes.get_mut(&from_id).unwrap();
+            from_node.neighbours.remove(&to_id);
 
             Ok(())
         } else {
-            return Err(PyValueError::new_err("No connection between x and y nodes"));
+            return Err(PyValueError::new_err("No connection between specified nodes"));
         }
     }
 
-    pub fn is_connected(&self, x: usize, y: usize) -> PyResult<bool> {
+    pub fn is_connected(&self, to_id: usize, from_id: usize) -> PyResult<bool> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To_id node not found in present Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From_id node not found in present Graph"));
         }
 
-        if x == y {
-            return Err(PyValueError::new_err("Cannot connect nodes to oneself"));
+        if to_id == from_id {
+            return Err(PyValueError::new_err("Nodes cannot be connected to themselves"));
         }
 
-        let x_node = self.nodes.get(&x).unwrap();
-        let y_node = self.nodes.get(&y).unwrap();
-        if x_node.neighbours.contains(&y) && y_node.neighbours.contains(&x) {
+        let from_node = self.nodes.get(&from_id).unwrap();
+        if from_node.neighbours.contains(&to_id) {
             Ok(true)
         } else {
             Ok(false)
@@ -348,7 +375,7 @@ impl Digraph {
             count += num;
         }
 
-        Ok(count / 2)
+        Ok(count)
     }
 
     pub fn has_path(&self, x: usize, y: usize) -> PyResult<bool> {
@@ -389,6 +416,49 @@ impl Digraph {
         Ok(false)
     }
 
+    pub fn transpose(&self, py: Python) -> PyResult<PyObject> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut new_digraph =  Digraph::new();
+        new_digraph.next_id = self.next_id;
+        new_digraph.count = self.count;
+
+        for (id, item) in self.nodes.iter() {
+            new_digraph.insert_with_id(*id, item.payload.clone_ref(py));
+        }
+
+        for (from_id, node) in self.nodes.iter() {
+            for to_id in &node.neighbours {
+                if let Some(reversed_node) = new_digraph.nodes.get_mut(to_id) {
+                    reversed_node.neighbours.insert(*from_id);
+                }
+            }
+        }
+
+        Py::new(py, new_digraph).map(|py_object| py_object.into_py(py))
+    }
+
+    pub fn has_cycle(&self) -> PyResult<bool> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut visited = FxHashSet::default();
+        let mut rec_stack = FxHashSet::default();
+
+
+        for &node_id in self.nodes.keys() {
+            if !visited.contains(&node_id) {
+                if self.dfs_cycle(node_id, &mut visited, &mut rec_stack) {
+                    return Ok(true);
+                }
+            }
+        }
+        return Ok(false);
+    }
+
     pub fn is_empty(&self) -> PyResult<bool> {
         if self.count == 0 {
             Ok(true)
@@ -397,7 +467,7 @@ impl Digraph {
         }
     }
 
-    pub fn node_coutn(&self) -> PyResult<usize> {
+    pub fn node_count(&self) -> PyResult<usize> {
         Ok(self.count)
     }
 
