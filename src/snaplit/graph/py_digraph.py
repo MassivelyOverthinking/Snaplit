@@ -1,17 +1,17 @@
 #---------- Imports ----------
 
-from rust_snaplit import BaseGraph as _RustBaseGraph
+from rust_snaplit import Digraph as _RustDigraph
 
 from typing import Any, List, Tuple, Optional, Union
 
-#---------- Base Graph Shim ----------
+#---------- Digraph Shim ----------
 
-class BaseGraph():
+class Digraph():
     """
-    A dynamic, undirected graph data structure with comprehensive Python object storage, powered on the backend
+    A dynamic, directional graph data structure with comprehensive Python object storage, powered on the backend
     by a high-performance Rust implementation.
 
-    BaseGraph allows for swift and efficient insertion, deletion, and traversal of individual nodes, 
+    Digraph allows for swift and efficient insertion, deletion, and traversal of individual nodes, 
     along with query operations on edges/nodes. Internally nodes are assigned unique, individual identifying 
     integer keys upon insertion, and can hold any Python object instance as payload.
 
@@ -35,17 +35,23 @@ class BaseGraph():
     update(item: Any, key: int) -> None:
         Update the payload of an internal node by its identifying key number.
 
-    add_edge(x: int, y: iny) -> None:
-        Creates an undirected edge between 2 current nodes.
+    add_edge(to_id: int, from_id: int) -> None:
+        Creates an directional edge from 'from_id' -> 'to_id'.
 
-    remove_edge(x: int, y: int) -> None:
-        Removes and undirected edge between 2 current nodes.
+    remove_edge(to_id: int, from_id: int) -> None:
+        Removes a directional edge from 'from_id' -> 'to_id'.
 
-    is_connected(x: int, y: int) -> bool:
-        Returns True if an edge exists between the 2 specified nodes, else False.
+    is_connected(to_id: int, from_id: int) -> bool:
+        Returns True if a directional edge exists between the 2 specified nodes, else False.
 
-    has_path(x: int, y: int) -> bool:
-        Returns True if a path exists between the 2 specified nodes, else False.
+    has_path(to_id: int, from_id: int) -> bool:
+        Returns True if a directional path exists between the 2 specified nodes, else False.
+
+    has_cycle() -> bool:
+        Returns True, if the internal Digraph is cyclical.
+
+    transpose() -> Digraph:
+        Creates and returns a new Digraph instance with all current nodes but inversed edges. 
 
     neighbours(index: int) -> List[int]:
         Returns the identifying node keys of all neighbours.
@@ -87,7 +93,7 @@ class BaseGraph():
 
     ----- Example -----
 
-    >>> test_graph = BaseGraph()
+    >>> test_graph = Digraph()
     >>> test_graph.insert("Aragorn")
     >>> test_graph.insert("Legolas")
     >>> test_graph.insert("Gimli")
@@ -103,7 +109,7 @@ class BaseGraph():
     [(1, "Aragorn"), (2, "Legolas"), (3, "Gimli")]
     """
     def __init__(self):
-        self._inner = _RustBaseGraph()
+        self._inner = _RustDigraph()
 
     def insert(self, item: Any) -> bool:
         return self._inner.insert(item)
@@ -135,29 +141,29 @@ class BaseGraph():
         
         self._inner.update(item, index)
 
-    def add_edge(self, x: int, y: int) -> None:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def add_edge(self, to_id: int, from_id: int) -> None:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        self._inner.add_edge(x, y)
+        self._inner.add_edge(to_id, from_id)
 
-    def remove_edge(self, x: int, y: int) -> None:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def remove_edge(self, to_id: int, from_id: int) -> None:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        self._inner.remove_edge(x, y)
+        self._inner.remove_edge(to_id, from_id)
 
-    def is_connected(self, x: int, y: int) -> bool:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def is_connected(self, to_id: int, from_id: int) -> bool:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        return self._inner.is_connected(x, y)
+        return self._inner.is_connected(to_id, from_id)
     
     def neighbours(self, index: int) -> List[int]:
         if not isinstance(index, int):
@@ -190,13 +196,21 @@ class BaseGraph():
     def edge_count(self) -> int:
         return self._inner.edge_count()
     
-    def has_path(self, x: int, y: int) -> bool:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def has_path(self, to_id: int, from_id: int) -> bool:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        return self._inner.has_path(x, y)
+        return self._inner.has_path(to_id, from_id)
+    
+    def has_cycle(self) -> bool:
+        return self._inner.has_cycle()
+    
+    def transpose(self) -> "Digraph":
+        result = Digraph()
+        result._inner = self._inner.transpose()
+        return result
     
     def is_empty(self) -> bool:
         return self._inner.is_empty()
@@ -215,6 +229,6 @@ class BaseGraph():
     
     def __contains__(self, item: int) -> bool:
         return self._inner.contains(item)
-    
+
     def __iter__(self):
-        return self._inner.keys()
+        return iter(self._inner.keys())
