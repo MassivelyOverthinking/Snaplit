@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 struct WeightedNode {
     id: usize,
     payload: PyObject,
-    neighbours: FxHashSet<usize>,
+    neighbours: FxHashMap<usize, f64>,
 }
 
 #[allow(dead_code)]
@@ -19,7 +19,7 @@ impl WeightedNode {
         Self {
             id: id,
             payload: payload,
-            neighbours: FxHashSet::default(),
+            neighbours: FxHashMap::default(),
         }
     }
 }
@@ -34,7 +34,7 @@ pub struct WeightedGraph {
 impl WeightedGraph {
     fn removal(&mut self, id: usize) {
         for (_, item) in self.nodes.iter_mut() {
-            if item.neighbours.contains(&id) {
+            if item.neighbours.contains_key(&id) {
                 item.neighbours.remove(&id);
             }
         }
@@ -127,7 +127,7 @@ impl WeightedGraph {
         Ok(())
     }
 
-    pub fn add_edge(&mut self, x: usize, y: usize) -> PyResult<()> {
+    pub fn add_edge(&mut self, x: usize, y: usize, weight: f64) -> PyResult<()> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
@@ -141,10 +141,10 @@ impl WeightedGraph {
         }
         
         let x_node = self.nodes.get_mut(&x).unwrap();
-        x_node.neighbours.insert(y);
+        x_node.neighbours.insert(y, weight);
         
         let y_node = self.nodes.get_mut(&y).unwrap();
-        y_node.neighbours.insert(x);
+        y_node.neighbours.insert(x, weight);
         
         Ok(())
     }
@@ -194,11 +194,35 @@ impl WeightedGraph {
 
         let x_node = self.nodes.get(&x).unwrap();
         let y_node = self.nodes.get(&y).unwrap();
-        if x_node.neighbours.contains(&y) && y_node.neighbours.contains(&x) {
+        if x_node.neighbours.contains_key(&y) && y_node.neighbours.contains_key(&x) {
             Ok(true)
         } else {
             Ok(false)
         }
+    }
+
+    pub fn get_weight(&self, x: usize, y: usize) -> PyResult<f64> {
+        if self.is_connected(x, y)? {
+            let node = self.nodes.get(&x).expect("No node found!");
+            return Ok(*node.neighbours.get(&y).unwrap());
+        } else {
+            return Err(PyValueError::new_err("X and Y nodes are not connected"));
+        }
+    }
+
+    pub fn total_weight(&self) -> PyResult<f64> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut total: f64 = 0.0;
+        for (_, node) in self.nodes.iter() {
+            for (_, weight) in node.neighbours.iter() {
+                total += weight;
+            }
+        }
+
+        Ok(total)
     }
 
     pub fn neighbours<'py>(&self, py: Python<'py>, index: usize) -> PyResult<&'py PyList> {
@@ -262,7 +286,7 @@ impl WeightedGraph {
                 results.push(current_id.to_object(py));
             }
 
-            for neigh_id in &node.neighbours {
+            for (neigh_id, _) in &node.neighbours {
                 if !visited.contains(neigh_id) {
                     visited.insert(*neigh_id);
                     id_queue.push_back(*neigh_id);
@@ -306,7 +330,7 @@ impl WeightedGraph {
                 results.push(current_id.to_object(py));
             }
 
-            for neigh_id in &node.neighbours {
+            for (neigh_id, _) in &node.neighbours {
                 if !visited.contains(neigh_id) {
                     visited.insert(*neigh_id);
                     id_stack.push_back(*neigh_id);
@@ -336,6 +360,27 @@ impl WeightedGraph {
 
         Ok(count)
     }
+
+    pub fn weighted_degree(&self, id: usize) -> PyResult<f64> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        if !self.nodes.contains_key(&id) {
+            return Err(PyValueError::new_err("ID value not found in Graph"));
+        }
+
+        let mut total: f64 = 0.0;
+        let node = self.nodes.get(&id).expect("No node found!");
+
+        for (_, weight) in node.neighbours.iter() {
+            total += weight;
+        }
+
+        Ok(total)
+    }
+
+
 
     pub fn edge_count(&self) -> PyResult<usize> {
         if self.nodes.is_empty() {
@@ -379,7 +424,7 @@ impl WeightedGraph {
                 PyValueError::new_err("Corrupted Graph structure: Node missing during BFS")
             })?;
 
-            for neigh_id in &node.neighbours {
+            for (neigh_id, _) in &node.neighbours {
                 if !visited.contains(neigh_id) {
                     visited.insert(*neigh_id);
                     id_queue.push_back(*neigh_id);
@@ -397,7 +442,7 @@ impl WeightedGraph {
         }
     }
 
-    pub fn node_coutn(&self) -> PyResult<usize> {
+    pub fn node_count(&self) -> PyResult<usize> {
         Ok(self.count)
     }
 
