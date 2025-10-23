@@ -444,6 +444,16 @@ impl WeightedGraph {
         Ok(self.count)
     }
 
+    pub fn density(&self) -> PyResult<f64> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let edge_count = self.edge_count()?;
+        let result = 2 * edge_count / (self.count * (self.count - 1));
+        Ok(result as f64)
+    }
+
     pub fn clear(&mut self) -> PyResult<()> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("Graph is already empty"))
