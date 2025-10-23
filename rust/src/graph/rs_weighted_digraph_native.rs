@@ -39,6 +39,32 @@ impl WeightedDigraph {
             }
         }
     }
+
+    fn insert_with_id(&mut self, id: usize, payload: PyObject) {
+        let new_node = WeightedNode::new(id, payload);
+
+        self.nodes.insert(id, new_node);
+    }
+
+    fn dfs_cycle(&self, node_id: usize, visited: &mut FxHashSet<usize>, rec_stack: &mut FxHashSet<usize>) -> bool {
+
+        visited.insert(node_id);
+        rec_stack.insert(node_id);
+
+        if let Some(node) = self.nodes.get(&node_id) {
+            for (&neighbour_id, _) in &node.neighbours {
+                if !visited.contains(&neighbour_id) {
+                    if self.dfs_cycle(neighbour_id, visited, rec_stack) {
+                        return true;
+                    }
+                } else if rec_stack.contains(&neighbour_id) {
+                    return true;
+                }
+            }
+        } 
+        rec_stack.remove(&node_id);
+        false
+    }
 }
 
 #[pymethods]
@@ -127,47 +153,41 @@ impl WeightedDigraph {
         Ok(())
     }
 
-    pub fn add_edge(&mut self, x: usize, y: usize, weight: f64) -> PyResult<()> {
+    pub fn add_edge(&mut self, to_id: usize, from_id: usize, weight: f64) -> PyResult<()> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To ID node not found in current Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From ID node not found in current Graph"));
         }
         
-        let x_node = self.nodes.get_mut(&x).expect("X node not found!");
-        x_node.neighbours.insert(y, weight);
-        
-        let y_node = self.nodes.get_mut(&y).expect("Y node not found!");
-        y_node.neighbours.insert(x, weight);
+        let from_node = self.nodes.get_mut(&from_id).expect("From ID node not found!");
+        from_node.neighbours.insert(to_id, weight);
         
         Ok(())
     }
 
-    pub fn remove_edge(&mut self, x: usize, y: usize) -> PyResult<()> {
+    pub fn remove_edge(&mut self, to_id: usize, from_id: usize) -> PyResult<()> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To ID node not found in current Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From ID node not found in current Graph"));
         }
 
-        if self.is_connected(x, y)? {
-            let x_node = self.nodes.get_mut(&x).expect("X node not found!");
-            x_node.neighbours.remove(&y);
-        
-            let y_node = self.nodes.get_mut(&y).expect("Y node not found");
-            y_node.neighbours.remove(&x);
+        if self.is_connected(to_id, from_id)? {
+            let from_node = self.nodes.get_mut(&from_id).expect("From ID node not found!");
+            from_node.neighbours.remove(&to_id);
 
             Ok(())
         } else {
@@ -175,36 +195,35 @@ impl WeightedDigraph {
         }
     }
 
-    pub fn is_connected(&self, x: usize, y: usize) -> PyResult<bool> {
+    pub fn is_connected(&self, to_id: usize, from_id: usize) -> PyResult<bool> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To ID node not found in current Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From ID node not found in current Graph"));
         }
 
-        if x == y {
+        if to_id == from_id {
             return Err(PyValueError::new_err("Cannot connect nodes to oneself"));
         }
 
-        let x_node = self.nodes.get(&x).expect("X node not found!");
-        let y_node = self.nodes.get(&y).expect("Y node not found!");
-        if x_node.neighbours.contains_key(&y) && y_node.neighbours.contains_key(&x) {
+        let from_node = self.nodes.get(&from_id).expect("From ID node not found!");
+        if from_node.neighbours.contains_key(&to_id) {
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    pub fn get_weight(&self, x: usize, y: usize) -> PyResult<f64> {
-        if self.is_connected(x, y)? {
-            let node = self.nodes.get(&x).expect("No node found!");
-            return Ok(*node.neighbours.get(&y).expect("Weight not found in node!"));
+    pub fn get_weight(&self, to_id: usize, from_id: usize) -> PyResult<f64> {
+        if self.is_connected(to_id, from_id)? {
+            let node = self.nodes.get(&from_id).expect("From ID node found!");
+            return Ok(*node.neighbours.get(&to_id).expect("Weight not found in node!"));
         } else {
             return Err(PyValueError::new_err("X and Y nodes are not connected"));
         }
@@ -391,30 +410,30 @@ impl WeightedDigraph {
             count += num;
         }
 
-        Ok(count / 2)
+        Ok(count)
     }
 
-    pub fn has_path(&self, x: usize, y: usize) -> PyResult<bool> {
+    pub fn has_path(&self, to_id: usize, from_id: usize) -> PyResult<bool> {
         if self.nodes.is_empty() {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        if !self.nodes.contains_key(&x) {
-            return Err(PyValueError::new_err("X node not found in current Graph"));
+        if !self.nodes.contains_key(&to_id) {
+            return Err(PyValueError::new_err("To ID node not found in current Graph"));
         }
 
-        if !self.nodes.contains_key(&y) {
-            return Err(PyValueError::new_err("Y node not found in current Graph"));
+        if !self.nodes.contains_key(&from_id) {
+            return Err(PyValueError::new_err("From ID node not found in current Graph"));
         }
 
         let mut visited = FxHashSet::default();
         let mut id_queue = VecDeque::new();
 
-        visited.insert(x);
-        id_queue.push_back(x);
+        visited.insert(from_id);
+        id_queue.push_back(from_id);
 
         while let Some(current_id) = id_queue.pop_front() {
-            if current_id == y {
+            if current_id == to_id {
                 return Ok(true);
             }
 
@@ -430,6 +449,49 @@ impl WeightedDigraph {
             }
         }
         Ok(false)
+    }
+
+    pub fn transpose(&self, py: Python) -> PyResult<PyObject> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut new_digraph =  WeightedDigraph::new();
+        new_digraph.next_id = self.next_id;
+        new_digraph.count = self.count;
+
+        for (id, item) in self.nodes.iter() {
+            new_digraph.insert_with_id(*id, item.payload.clone_ref(py));
+        }
+
+        for (from_id, node) in self.nodes.iter() {
+            for (to_id, weight) in &node.neighbours {
+                if let Some(reversed_node) = new_digraph.nodes.get_mut(to_id) {
+                    reversed_node.neighbours.insert(*from_id, *weight);
+                }
+            }
+        }
+
+        Py::new(py, new_digraph).map(|py_object| py_object.into_py(py))
+    }
+
+    pub fn has_cycle(&self) -> PyResult<bool> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let mut visited = FxHashSet::default();
+        let mut rec_stack = FxHashSet::default();
+
+
+        for &node_id in self.nodes.keys() {
+            if !visited.contains(&node_id) {
+                if self.dfs_cycle(node_id, &mut visited, &mut rec_stack) {
+                    return Ok(true);
+                }
+            }
+        }
+        return Ok(false);
     }
 
     pub fn is_empty(&self) -> PyResult<bool> {
@@ -450,7 +512,7 @@ impl WeightedDigraph {
         }
 
         let edge_count = self.edge_count()?;
-        let result = 2 * edge_count / (self.count * (self.count - 1));
+        let result = edge_count / (self.count * (self.count - 1));
         Ok(result as f64)
     }
 
