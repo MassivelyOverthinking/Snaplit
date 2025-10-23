@@ -26,6 +26,7 @@ use trees::rs_trie_native::Trie;
 use graph::rs_base_graph_native::BaseGraph;
 use graph::rs_digraph_native::Digraph;
 use graph::rs_weighted_graph_native::WeightedGraph;
+use graph::rs_weighted_digraph_native::WeightedDigraph;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
@@ -50,5 +51,6 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BaseGraph>()?;
     m.add_class::<Digraph>()?;
     m.add_class::<WeightedGraph>()?;
+    m.add_class::<WeightedDigraph>()?;
     Ok(())
 }
