@@ -64,11 +64,11 @@ class WeightedGraph():
 
     BFS_list(start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[int, Any]]:
         Performs a Breadth-First Search traversal of the graph and returns ID nums.
-        If 'return_false = True' also return payload values.
+        If 'return_value = True' also return payload values.
 
     DFS_list(start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[int, Any]]:
         Performs a Depth-First Search traversal of the graph and returns ID nums.
-        If 'return_false = True' also return payload values.
+        If 'return_value = True' also return payload values.
 
     degree(id: int) -> int:
         Returns the number of neighbours to the specified node.
@@ -255,4 +255,4 @@ class WeightedGraph():
         return self._inner.contains(item)
     
     def __iter__(self):
-        return self._inner.keys()
+        return iter(self._inner.keys())

@@ -8,14 +8,14 @@ from typing import Any, List, Tuple, Optional, Union
 
 class WeightedDigraph():
     """
-    A high-performance, dynamic **undirected weight graph** data structure implemented in Rust.
+    A high-performance, dynamic **directional weight graph** data structure implemented in Rust.
 
-    The 'WeightedGraph' class provides an efficient and flexible graph interface for Python,
+    The 'WeightedDigraph' class provides an efficient and flexible graph interface for Python,
     backed by an optimized Rust core for swift operations on large or frequently updated networks.
 
-    Each node is assigned a unique interger-based identifier upon insertion and can store any arbitrary
-    Python object as its data payload. Edges are undirected and carry a floating-point weight, representing
-    the connection cost streangth or general distance between the nodes.
+    Each node is assigned a unique integer-based identifier upon insertion and can store any arbitrary
+    Python object as its data payload. Edges are directed and carry a floating-point weight, representing
+    the connection cost, strength or general distance between the nodes.
 
     ----- Methods -----
 
@@ -37,24 +37,31 @@ class WeightedDigraph():
     update(item: Any, key: int) -> None:
         Update the payload of an internal node by its identifying key number.
 
-    add_edge(x: int, y: iny, weight: float) -> None:
-        Creates an undirected, weighted edge between 2 current nodes.
+    add_edge(to_id: int, from_id: int, weight: float) -> None:
+        Creates a directional, weighted edge between 2 current nodes.
         Weight represents the general connection cost between nodes.
 
-    remove_edge(x: int, y: int) -> None:
-        Removes an undirected edge between 2 current nodes.
+    remove_edge(to_id: int, from_id: int) -> None:
+        Removes a directional edge between 2 current nodes.
 
-    is_connected(x: int, y: int) -> bool:
+    is_connected(to_id: int, from_id: int) -> bool:
         Returns True if an edge exists between the 2 specified nodes, else False.
 
-    get_weight(x: int, y: iny) -> float:
+    get_weight(to_id: int, from_id: iny) -> float:
         Returns the weight value of the connection between specified nodes.
 
     total_weight() -> float:
         Returns the weight values of all edges present in Graph structure.
 
-    has_path(x: int, y: int) -> bool:
+    has_path(to_id: int, from_id: int) -> bool:
         Returns True if a path exists between the 2 specified nodes, else False.
+
+    has_cycle() -> bool:
+        Returns True, if the internal Digraph is cyclical.
+
+    transpose() -> Digraph:
+        Creates and returns a new Digraph instance with all current nodes but inversed edges.
+        Edges retain individual weight value.
 
     neighbours(index: int) -> List[int]:
         Returns the identifying node keys of all neighbours.
@@ -64,11 +71,11 @@ class WeightedDigraph():
 
     BFS_list(start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[int, Any]]:
         Performs a Breadth-First Search traversal of the graph and returns ID nums.
-        If 'return_false = True' also return payload values.
+        If 'return_value = True' also return payload values.
 
     DFS_list(start_id: int, return_value: Optional[bool] = False) -> Union[List[int], List[int, Any]]:
         Performs a Depth-First Search traversal of the graph and returns ID nums.
-        If 'return_false = True' also return payload values.
+        If 'return_value = True' also return payload values.
 
     degree(id: int) -> int:
         Returns the number of neighbours to the specified node.
@@ -80,7 +87,7 @@ class WeightedDigraph():
         Returns the total number of edges in internal Graph structure.
 
     density() -> float:
-        Returns the current density of the Graph structure (2e / (n * (n - 1))).
+        Returns the current density of the Graph structure (e / (n * (n - 1))).
         e = Number of edges, n = Number of nodes.
 
     is_empty() -> bool:
@@ -103,7 +110,7 @@ class WeightedDigraph():
 
     ----- Example -----
 
-    >>> test_graph = WeightedGraph()
+    >>> test_graph = WeightedDigraph()
     >>> test_graph.insert("Aragorn")
     >>> test_graph.insert("Legolas")
     >>> test_graph.insert("Gimli")
@@ -151,39 +158,39 @@ class WeightedDigraph():
         
         self._inner.update(item, index)
 
-    def add_edge(self, x: int, y: int, weight: float) -> None:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def add_edge(self, to_id: int, from_id: int, weight: float) -> None:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         if not isinstance(weight, float):
             raise TypeError("Weight must be of Type: float")
         
-        self._inner.add_edge(x, y, weight)
+        self._inner.add_edge(to_id, from_id, weight)
 
-    def remove_edge(self, x: int, y: int) -> None:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def remove_edge(self, to_id: int, from_id: int) -> None:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        self._inner.remove_edge(x, y)
+        self._inner.remove_edge(to_id, from_id)
 
-    def is_connected(self, x: int, y: int) -> bool:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def is_connected(self, to_id: int, from_id: int) -> bool:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        return self._inner.is_connected(x, y)
+        return self._inner.is_connected(to_id, from_id)
     
-    def get_weight(self, x: int, y: int) -> float:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def get_weight(self, to_id: int, from_id: int) -> float:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        return self._inner.get_weight(x, y)
+        return self._inner.get_weight(to_id, from_id)
     
     def total_weight(self) -> float:
         return self._inner.total_weight()
@@ -225,13 +232,21 @@ class WeightedDigraph():
     def edge_count(self) -> int:
         return self._inner.edge_count()
     
-    def has_path(self, x: int, y: int) -> bool:
-        if not isinstance(x, int):
-            raise TypeError("X-value must be of Type: int")
-        if not isinstance(y, int):
-            raise TypeError("Y-value must be of Type: int")
+    def has_path(self, to_id: int, from_id: int) -> bool:
+        if not isinstance(to_id, int):
+            raise TypeError("To ID must be of Type: int")
+        if not isinstance(from_id, int):
+            raise TypeError("From ID must be of Type: int")
         
-        return self._inner.has_path(x, y)
+        return self._inner.has_path(to_id, from_id)
+    
+    def has_cycle(self) -> bool:
+        return self._inner.has_cycle()
+    
+    def transpose(self) -> "WeightedDigraph":
+        result = WeightedDigraph()
+        result._inner = self._inner.transpose()
+        return result
     
     def density(self) -> float:
         return self._inner.density()
@@ -255,4 +270,4 @@ class WeightedDigraph():
         return self._inner.contains(item)
     
     def __iter__(self):
-        return self._inner.keys()
+        return iter(self._inner.keys())
