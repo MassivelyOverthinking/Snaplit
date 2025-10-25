@@ -1,6 +1,8 @@
+use std::usize::{MAX, MIN};
+
 use pyo3::{exceptions::PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::{PyList};
 use pyo3::PyObject;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -276,12 +278,61 @@ impl HyperGraph {
         }
     }
 
+    pub fn insersection<'py>(&self, py: Python<'py>, edge_id1: &str, edge_id2: &str) -> PyResult<&'py PyList> {
+        let edge_1 = self.hyperedges.get(edge_id1).ok_or_else(|| PyValueError::new_err(format!("Hyper edge with ID {} not found in Graph", edge_id1)))?;
+        let edge_2 = self.hyperedges.get(edge_id2).ok_or_else(|| PyValueError::new_err(format!("Hyper edge with ID {} not found in Graph", edge_id2)))?;
+
+        let (smaller_set, larger_set) = if edge_1.vertices.len() <= edge_2.vertices.len() {
+            (&edge_1.vertices, &edge_2.vertices)
+        } else {
+            (&edge_2.vertices, &edge_1.vertices)
+        };
+
+        let intersection: Vec<usize> = smaller_set.iter().filter(|node_id| larger_set.contains(node_id)).copied().collect();
+        Ok(PyList::new(py, intersection))
+    }
+
     pub fn degree(&self, node_id: usize) -> PyResult<usize> {
         if let Some(node) = self.node_to_edge.get(&node_id) {
             Ok(node.len())
         } else {
             return Err(PyValueError::new_err(format!("Node with ID {} not found in Graph", node_id)));
         }
+    }
+
+    pub fn max_degree(&self) -> PyResult<usize> {
+        let mut maximum = MIN;
+
+        for (_, list) in self.node_to_edge.iter() {
+            let lenght = list.len();
+            if lenght >= maximum {
+                maximum = lenght;
+            }
+        }
+        Ok(maximum)
+    }
+
+    pub fn min_degree(&self) -> PyResult<usize> {
+        let mut minimum = MAX;
+
+        for (_, list) in self.node_to_edge.iter() {
+            let lenght = list.len();
+            if lenght <= minimum {
+                minimum = lenght;
+            }
+        }
+        Ok(minimum)
+    }
+
+    pub fn average_degree(&self) -> PyResult<f32> {
+        let mut total: f32 = 0.0;
+        let size = self.node_to_edge.len() as f32;
+
+        for (_, list) in self.node_to_edge.iter() {
+            total += list.len() as f32;
+        }
+
+        Ok(total / size)
     }
 
     pub fn edge_size(&self, edge_id: &str) -> PyResult<usize> {
@@ -321,6 +372,7 @@ impl HyperGraph {
     pub fn clear(&mut self) -> PyResult<()> {
         self.nodes.clear();
         self.hyperedges.clear();
+        self.node_to_edge.clear();
         self.next_id = 1;
         Ok(())
     }
