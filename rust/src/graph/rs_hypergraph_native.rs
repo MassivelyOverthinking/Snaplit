@@ -1,5 +1,4 @@
-use std::collections::VecDeque;
-use pyo3::{exceptions::PyValueError, types::PyTuple};
+use pyo3::{exceptions::PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::PyObject;
@@ -8,7 +7,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct HyperNode {
-    NodeId: usize,
+    node_id: usize,
     payload: PyObject,
 }
 
@@ -16,7 +15,7 @@ struct HyperNode {
 impl HyperNode {
     fn new(id: usize, payload: PyObject) -> Self {
         Self {
-            NodeId: id,
+            node_id: id,
             payload: payload,
         }
     }
@@ -25,14 +24,14 @@ impl HyperNode {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct HyperEdge {
-    EdgeId: String,
+    edge_id: String,
     vertices: FxHashSet<usize>,
 }
 
 impl HyperEdge {
     fn new(id: String) -> Self {
         Self {
-            EdgeId: id, 
+            edge_id: id, 
             vertices: FxHashSet::default(),
         }
     }
@@ -40,9 +39,11 @@ impl HyperEdge {
 
 impl HyperGraph {
     fn node_removal(&mut self, id: usize) {
-        for (_, item) in self.hyperedges.iter_mut() {
-            if item.vertices.contains(&id) {
-                item.vertices.remove(&id);
+        if let Some(edge_ids) = self.node_to_edge.remove(&id) {
+            for edge_id in edge_ids {
+                if let Some(edge) = self.hyperedges.get_mut(&edge_id) {
+                    edge.vertices.remove(&id);
+                }
             }
         }
     }
@@ -52,6 +53,7 @@ impl HyperGraph {
 pub struct HyperGraph {
     nodes: FxHashMap<usize, HyperNode>,
     hyperedges: FxHashMap<String, HyperEdge>,
+    node_to_edge: FxHashMap<usize, FxHashSet<String>>,
     next_id: usize,
 }
 
@@ -62,6 +64,7 @@ impl HyperGraph {
         Self {
             nodes: FxHashMap::default(),
             hyperedges: FxHashMap::default(),
+            node_to_edge: FxHashMap::default(),
             next_id: 1,
         }
     }
@@ -72,7 +75,8 @@ impl HyperGraph {
         if self.nodes.contains_key(&self.next_id) {
             return Ok(false);
         } else {
-            self.nodes.insert(self.next_id, new_node);
+            let id = self.next_id;
+            self.nodes.insert(id, new_node);
             self.next_id += 1;
             Ok(true)
         }
@@ -109,14 +113,7 @@ impl HyperGraph {
             return Err(PyValueError::new_err("No elements currently available in Graph"));
         }
 
-        let mut elements = Vec::new();
-
-        for (id,_) in self.nodes.iter() {
-            elements.push(id);
-        }
-
-        let final_list = PyList::new(py, elements);
-        Ok(final_list.into())
+        Ok(PyList::new(py, self.nodes.keys()))
     }
 
     pub fn contains(&self, key: usize) -> PyResult<bool> {
@@ -159,11 +156,172 @@ impl HyperGraph {
                     return Err(PyValueError::new_err(format!("Node with ID {} does not exist in Graph", node_id)));
                 }
                 new_edge.vertices.insert(node_id);
+
+                self.node_to_edge.entry(node_id).or_default().insert(id.clone());
             }
         }
 
         self.hyperedges.insert(id, new_edge);
 
+        Ok(())
+    }
+
+    pub fn remove_edge(&mut self, id: String) -> PyResult<bool> {
+        if let Some(edge) = self.hyperedges.remove(&id) {
+            for node_id in edge.vertices {
+                if let Some(edges) = self.node_to_edge.get_mut(&node_id) {
+                    edges.remove(&id);
+                    if edges.is_empty() {
+                        self.node_to_edge.remove(&node_id);
+                    }
+                }
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    } 
+
+    pub fn connect(&mut self, edge_id: &str, node_id: usize) -> PyResult<()> {
+        if !self.hyperedges.contains_key(edge_id) {
+            return Err(PyValueError::new_err(format!("Edge with ID {} not found!", edge_id)));
+        }
+
+        if !self.nodes.contains_key(&node_id) {
+            return Err(PyValueError::new_err(format!("Node with ID {} not found!", node_id)));
+        }
+
+        let edge = self.hyperedges.get_mut(edge_id).unwrap();
+        edge.vertices.insert(node_id);
+
+        self.node_to_edge.entry(node_id).or_default().insert(edge_id.to_string());
+
+        Ok(())
+    }
+
+    pub fn disconnect(&mut self, edge_id: &str, node_id: usize) -> PyResult<()> {
+        if !self.hyperedges.contains_key(edge_id) {
+            return Err(PyValueError::new_err(format!("Edge with ID {} not found!", edge_id)));
+        }
+
+        if !self.nodes.contains_key(&node_id) {
+            return Err(PyValueError::new_err(format!("Node with ID {} not found!", node_id)));
+        }
+
+        let edge = self.hyperedges.get_mut(edge_id).unwrap();
+        edge.vertices.remove(&node_id);
+
+        if let Some(edges) = self.node_to_edge.get_mut(&node_id) {
+            edges.remove(edge_id);
+            if edges.is_empty() {
+                self.node_to_edge.remove(&node_id);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn edges<'py>(&self, py: Python<'py>,) -> PyResult<&'py PyList> {
+        if self.hyperedges.is_empty() {
+            return Err(PyValueError::new_err("No hyper edges currently available in Graph"));
+        }
+
+        Ok(PyList::new(py, self.hyperedges.keys()))
+    }
+
+    pub fn is_connected(&self, edge_id: String, node_id: usize) -> PyResult<bool> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+        if !self.nodes.contains_key(&node_id) {
+            return Err(PyValueError::new_err(format!("Node with ID {} not found!", node_id)));
+        }
+
+        if self.hyperedges.is_empty() {
+            return Err(PyValueError::new_err("No hyper-edges currently available in Graph"));
+        }
+        if !self.hyperedges.contains_key(&edge_id) {
+            return Err(PyValueError::new_err(format!("Hyper edge with ID {} not found!", edge_id)));
+        }
+
+        let edge = self.hyperedges.get(&edge_id).unwrap();
+        if edge.vertices.contains(&node_id) {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn edges_of<'py>(&self, py: Python<'py>, node_id: usize) -> PyResult<&'py PyList> {
+        if self.hyperedges.is_empty() {
+            return Err(PyValueError::new_err("No hyper edges currently available in Graph"));
+        }
+
+        
+        if let Some(node) = self.node_to_edge.get(&node_id) {
+            Ok(PyList::new(py, node))
+        } else {
+            return Err(PyValueError::new_err(format!("Node with ID {} not found in graph!", node_id)));
+        }
+    }
+
+    pub fn nodes_of<'py>(&self, py: Python<'py>, edge_id: &str) -> PyResult<&'py PyList> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No nodes currently available in Graph"));
+        }
+
+        if let Some(edge) = self.hyperedges.get(edge_id) {
+            Ok(PyList::new(py, &edge.vertices))
+        } else {
+            return Err(PyValueError::new_err(format!("Edge with ID {} not found in Graph!", edge_id)));
+        }
+    }
+
+    pub fn degree(&self, node_id: usize) -> PyResult<usize> {
+        if let Some(node) = self.node_to_edge.get(&node_id) {
+            Ok(node.len())
+        } else {
+            return Err(PyValueError::new_err(format!("Node with ID {} not found in Graph", node_id)));
+        }
+    }
+
+    pub fn edge_size(&self, edge_id: &str) -> PyResult<usize> {
+        if let Some(edge) = self.hyperedges.get(edge_id) {
+            Ok(edge.vertices.len())
+        } else {
+            return Err(PyValueError::new_err(format!("Hyperedge with ID {} not found in Graph!", edge_id)));
+        }
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        if self.nodes.is_empty() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn node_count(&self) -> PyResult<usize> {
+        if self.nodes.is_empty() {
+            return Err(PyValueError::new_err("No elements currently available in Graph"));
+        }
+
+        let count = self.nodes.len();
+        Ok(count)
+    }
+
+    pub fn edge_count(&self) -> PyResult<usize> {
+        if self.hyperedges.is_empty() {
+            return Err(PyValueError::new_err("No hyper edges currently available in Graph"));
+        }
+
+        let count = self.hyperedges.len();
+        Ok(count)
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        self.nodes.clear();
+        self.hyperedges.clear();
+        self.next_id = 1;
         Ok(())
     }
 }
