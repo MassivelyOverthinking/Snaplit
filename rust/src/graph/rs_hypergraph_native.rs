@@ -1,5 +1,3 @@
-use std::usize::{MAX, MIN};
-
 use pyo3::{exceptions::PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyList};
@@ -278,7 +276,7 @@ impl HyperGraph {
         }
     }
 
-    pub fn insersection<'py>(&self, py: Python<'py>, edge_id1: &str, edge_id2: &str) -> PyResult<&'py PyList> {
+    pub fn intersection<'py>(&self, py: Python<'py>, edge_id1: &str, edge_id2: &str) -> PyResult<&'py PyList> {
         let edge_1 = self.hyperedges.get(edge_id1).ok_or_else(|| PyValueError::new_err(format!("Hyper edge with ID {} not found in Graph", edge_id1)))?;
         let edge_2 = self.hyperedges.get(edge_id2).ok_or_else(|| PyValueError::new_err(format!("Hyper edge with ID {} not found in Graph", edge_id2)))?;
 
@@ -301,25 +299,23 @@ impl HyperGraph {
     }
 
     pub fn max_degree(&self) -> PyResult<usize> {
-        let mut maximum = MIN;
+        let mut maximum = 0;
 
-        for (_, list) in self.node_to_edge.iter() {
-            let lenght = list.len();
-            if lenght >= maximum {
-                maximum = lenght;
-            }
+        for list in self.node_to_edge.values() {
+            maximum = maximum.max(list.len())
         }
         Ok(maximum)
     }
 
     pub fn min_degree(&self) -> PyResult<usize> {
-        let mut minimum = MAX;
+        let mut minimum = usize::MAX;
 
-        for (_, list) in self.node_to_edge.iter() {
-            let lenght = list.len();
-            if lenght <= minimum {
-                minimum = lenght;
-            }
+        for list in self.node_to_edge.values() {
+            minimum = minimum.min(list.len())
+        }
+        
+        if minimum == usize::MAX {
+            return Ok(0);
         }
         Ok(minimum)
     }
