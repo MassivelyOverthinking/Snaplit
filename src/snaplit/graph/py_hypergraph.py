@@ -7,6 +7,104 @@ from typing import Any, List, Optional
 #---------- Hypergraph Shim ----------
 
 class Hypergraph():
+    """
+    A high-performance hypergraph data structure for representing relationsships between arbitrary
+    entities, powered by a comprehensive Rust backend.
+
+    A hypergraph generalizes a ordinary graph structure by allowing edges (called 'hyperedges') to connect
+    any number of nodes, rather than just 2. This makes the graph-class ideal for modeling complex, many-to-many
+    relationships, such as memmberships or multi-agent systems.
+
+    The Hypergraph class provides efficient and optimized methods for manipulating nodes and edges, structural queries,
+    and topological measurements. Internally operations arepowered by Rust, ensuring low-latency insertion,
+    deletion and traversal or large graphs.
+
+    ----- Methods -----
+
+    insert(payload: Any) -> None:
+        Inserts a new node with the specified Python payload.
+
+    remove(key: int) -> Any:
+        Remove a node and return its internal payload.
+
+    extract(key: int) -> Any:
+        Retrieves and returns the internal node's payload without removing it.
+
+    update(payload: Any, id: int) -> None:
+        Replace the existing payload of the specified node with new value.
+
+    contains(id: int) -> bool:
+        Checks whether node with specified ID exists in the internal Graph.
+
+    keys() -> list[int]:
+        Return the ID keys of all nodes currently sstored in the internal Graph.
+
+    add_edge(id: str, vertices: Option[list[nt]] = None) -> None:
+        Creates a new hyperedge and connect one or more existing nodes.
+
+    remove_edge(id: str) -> bool:
+        Remove a hyperedge by its identifying string-ID
+
+    connect(edge_id: str, node_id: int) -> None:
+        Add a node to an existing hyperedge.
+
+    disconnect(edge_id: str, node_id: int) -> None:
+        Remove a node from an existing hyperedge.
+
+    edges() -> list[str]:
+        Return all hyperedge identifying keys.
+
+    edge_count() -> int:
+        Return the number of hyperedges currently present in the internal Graph.
+
+    node_count() -> int:
+        Return the number of nodes currently present in the internal Graph.
+
+    edge_size(edge_id: str) -> int:
+        Returns the number of nodes currently present within the specified hyperedge.
+
+    is_connected(edge_id: str, node_id: int) -> bool:
+        Determines whether a node exists within the specified hyperedge.
+
+    edges_of(node_id: int) -> list[str]:
+        List all hyperedges that include the given node.
+
+    nodes_of(edge_id: str) -> list[int]:
+        List all nodes that exist within the specified hyperedge.
+
+    intersection(edge_id1: str, edge_id2: str) -> list[int]:
+        Compute the intersecting nodes between 2 hyperedges.
+
+    degree(node_id: int) -> int:
+        Return the number of hyperedges attached to the specified node.
+
+    max_degree() -> int:
+        Returns the largest degree number amongst all nodes.
+
+    min_degree() -> int:
+        Returns the smallest degree number amongst all nodes.
+
+    average_degree() -> float:
+        Returns the average degree number amongst all nodes.
+
+    is_empty() -> bool:
+        Returns True if the internal Graph holds no nodes.
+
+    clear() -> None:
+        Removes all nodes and hyperedges, resetting the entire internal Graph structure.
+
+    __len__() -> int:
+        Returns the current number of nodes in Graph structure ('len(hypergraph)')
+
+    __bool__() -> bool:
+        Returns True is the current Graph structure is not empty ('if hypergraph:')
+
+    __contains__(id: int) -> bool:
+        Returns True if the specified node is present in the internal Graph ('id in hypergraph')
+
+    __iter__() -> Iterator:
+        Iterates over node IDs in the internal Graph structure.
+    """
 
     def __init__(self):
         self._inner = _RustHypergraph()
@@ -148,4 +246,5 @@ class Hypergraph():
         return self._inner.contains(id)
     
     def __iter__(self):
-        return len(self._inner.keys())
+        for key in self._inner.keys():
+            yield key
