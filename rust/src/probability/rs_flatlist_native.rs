@@ -1,6 +1,7 @@
 use pyo3::basic::CompareOp;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyList;
 use pyo3::PyObject;
 use rand::Rng;
 use rustc_hash::FxHashMap;
@@ -96,8 +97,10 @@ impl Flatlist {
         let top_lvl = self.get_top_level();
 
         for lvl in 0..=top_lvl {
-            self.list[lvl].push(new_node.clone());
-            self.list[lvl].sort_by(|x, y| Flatlist::py_compare(py, &x.payload, &y.payload));
+            let level = &mut self.list[lvl];
+            let index = level.binary_search_by(|node| Flatlist::py_compare(py, &node.payload, &new_node.payload)).unwrap_or_else(|i| i);
+
+            level.insert(index, new_node.clone());
         }
 
         self.id_map.insert(id, top_lvl);
@@ -107,11 +110,13 @@ impl Flatlist {
 
     pub fn remove(&mut self, py: Python, key: PyObject) -> PyResult<PyObject> {
         let mut removed_node = None;
+        let mut removed_id = 0;
 
         for level in self.list.iter_mut().rev() {
             level.retain(|node| {
                 if node.payload.as_ref(py).eq(key.as_ref(py)).unwrap_or(false) {
                     removed_node = Some(node.payload.clone());
+                    removed_id = node.id.clone();
                     false
                 } else {
                     true
@@ -120,7 +125,10 @@ impl Flatlist {
         }
         
         match removed_node {
-            Some(value) => return Ok(value),
+            Some(value) => {
+                self.id_map.remove(&removed_id);
+                return Ok(value)
+            },
             None => return Err(PyValueError::new_err(format!("No value with key {} found in list!", key)))
         }
     }
@@ -141,5 +149,84 @@ impl Flatlist {
         }
         Ok(false)
     }
-    
+
+    pub fn get(&self, py:Python, key: PyObject) -> PyResult<Option<PyObject>> {
+        for level in self.list.iter().rev() {
+            
+            let mut index = 0;
+            while index < level.len() {
+                let comparison = Flatlist::py_compare(py, &level[index].payload, &key);
+
+                match comparison {
+                    Ordering::Less => index += 1,
+                    Ordering::Equal => return Ok(Some(level[index].payload.clone())),
+                    Ordering::Greater => break,
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
+        let _ = self.remove(py, key);
+        self.insert(py, new_value)?;
+        Ok(true)
+    }
+
+    pub fn extend(&mut self, py: Python, items: Vec<PyObject>) -> PyResult<bool> {
+        for item in items.iter() {
+            self.insert(py, item.clone())?;
+        }
+
+        Ok(true)
+    }
+
+    pub fn index_of(&self, py: Python, key: PyObject) -> PyResult<usize> {
+        for (idx, node) in self.list[0].iter().enumerate() {
+            if node.payload.as_ref(py).eq(key.as_ref(py)).unwrap_or(false) {
+                return Ok(idx);
+            }
+        }
+        return Err(PyValueError::new_err(format!("No node with value {} found in Flatlist!", key)));
+    }
+
+    pub fn to_list<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+        let elements: Vec<PyObject> = self.list[0].iter().map(|node| node.payload.clone_ref(py)).collect();
+        Ok(PyList::new(py, elements).into())
+    }
+
+    pub fn min(&self, py: Python) -> PyResult<PyObject> {
+        let value = self.list[0].first().map(|node| node.payload.clone_ref(py));
+
+        match value {
+            Some(val) => return Ok(val),
+            None => return Err(PyValueError::new_err("No minimum value found in Flatlist!")),
+        }
+    }
+
+    pub fn max(&self, py: Python) -> PyResult<PyObject> {
+        let value = self.list[0].last().map(|node| node.payload.clone_ref(py));
+
+        match value {
+            Some(val) => return Ok(val),
+            None => return Err(PyValueError::new_err("No maximum value found in Flatlist!")),
+        }
+    }
+
+    pub fn size(&self) -> PyResult<usize> {
+        Ok(self.list[0].len())
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        Ok(self.list[0].is_empty())
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        for level in self.list.iter_mut() {
+            level.clear();
+        }
+        self.id_map.clear();
+        self.nex_id = 1;
+        Ok(())
+    }
 }
