@@ -33,6 +33,7 @@ use graph::rs_hypergraph_native::HyperGraph;
 use probability::rs_bloom_filter_native::BloomFilter;
 use probability::rs_cuckoo_filter_native::CuckooFilter;
 use probability::rs_xor_filter_native::XORFilter;
+use probability::rs_flatlist_native::Flatlist;
 
 // Final export to Python
 #[pymodule]
@@ -51,6 +52,7 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BloomFilter>()?;
     m.add_class::<CuckooFilter>()?;
     m.add_class::<XORFilter>()?;
+    m.add_class::<Flatlist>()?;
     m.add_class::<BaseGraph>()?;
     m.add_class::<Digraph>()?;
     m.add_class::<WeightedGraph>()?;
