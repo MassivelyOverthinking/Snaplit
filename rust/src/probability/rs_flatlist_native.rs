@@ -195,22 +195,63 @@ impl Flatlist {
         Ok(PyList::new(py, elements).into())
     }
 
-    pub fn min(&self, py: Python) -> PyResult<PyObject> {
+    pub fn peek_first(&self, py: Python) -> PyResult<PyObject> {
         let value = self.list[0].first().map(|node| node.payload.clone_ref(py));
 
         match value {
             Some(val) => return Ok(val),
-            None => return Err(PyValueError::new_err("No minimum value found in Flatlist!")),
+            None => return Err(PyValueError::new_err("No first value found in Flatlist!")),
         }
     }
 
-    pub fn max(&self, py: Python) -> PyResult<PyObject> {
+    pub fn peek_last(&self, py: Python) -> PyResult<PyObject> {
         let value = self.list[0].last().map(|node| node.payload.clone_ref(py));
 
         match value {
             Some(val) => return Ok(val),
-            None => return Err(PyValueError::new_err("No maximum value found in Flatlist!")),
+            None => return Err(PyValueError::new_err("No last value found in Flatlist!")),
         }
+    }
+
+    pub fn pop_first(&mut self) -> PyResult<PyObject> {
+        if self.list[0].is_empty() {
+            return Err(PyValueError::new_err("No nodes currently present in Flatlist!"));
+        }
+
+        let node = self.list[0].remove(0);
+        let top_lvl = *self.id_map.get(&node.id).unwrap_or(&0);
+
+        self.id_map.remove(&node.id);
+
+        for level in 1..=top_lvl {
+            self.list[level].retain(|n| n.id != node.id);
+        }
+
+        Ok(node.payload)
+    }
+
+    pub fn pop_last(&mut self) -> PyResult<PyObject> {
+        if self.list[0].is_empty() {
+            return Err(PyValueError::new_err("No nodes currently present in Flatlist!"));
+        }
+
+        let node = self.list[0].pop().unwrap();
+        let top_lvl = *self.id_map.get(&node.id).unwrap_or(&0);
+
+        self.id_map.remove(&node.id);
+
+        for level in 1..=top_lvl {
+            self.list[level].retain(|n| n.id != node.id);
+        }
+
+        Ok(node.payload)
+    }
+
+    pub fn merge(&mut self, py: Python, other: &Flatlist) -> PyResult<bool> {
+        for node in &other.list[0] {
+            self.insert(py, node.payload.clone_ref(py))?;
+        }
+        Ok(true)
     }
 
     pub fn size(&self) -> PyResult<usize> {
