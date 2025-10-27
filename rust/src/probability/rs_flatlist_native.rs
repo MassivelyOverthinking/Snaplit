@@ -1,4 +1,5 @@
 use pyo3::basic::CompareOp;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::PyObject;
 use rand::Rng;
@@ -27,7 +28,7 @@ impl Flatlist {
         return n;
     }
 
-    fn get_num_list(&self) -> usize {
+    fn get_top_level(&self) -> usize {
         let mut level = 0;
 
         while level < self.size - 1 && self.coin_toss() {
@@ -60,9 +61,9 @@ impl Flatlist {
                 return Ordering::Greater
             }
         }
-
         return Ordering::Equal
     }
+
 }
 
 #[pyclass]
@@ -92,7 +93,7 @@ impl Flatlist {
     pub fn insert(&mut self, py: Python, payload: PyObject) -> PyResult<bool> {
         let id = self.nex_id;
         let new_node = FlatNode::new(id, payload);
-        let top_lvl = self.get_num_list();
+        let top_lvl = self.get_top_level();
 
         for lvl in 0..=top_lvl {
             self.list[lvl].push(new_node.clone());
@@ -100,6 +101,45 @@ impl Flatlist {
         }
 
         self.id_map.insert(id, top_lvl);
+        self.nex_id += 1;
         Ok(true)
     }
+
+    pub fn remove(&mut self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        let mut removed_node = None;
+
+        for level in self.list.iter_mut().rev() {
+            level.retain(|node| {
+                if node.payload.as_ref(py).eq(key.as_ref(py)).unwrap_or(false) {
+                    removed_node = Some(node.payload.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+        
+        match removed_node {
+            Some(value) => return Ok(value),
+            None => return Err(PyValueError::new_err(format!("No value with key {} found in list!", key)))
+        }
+    }
+
+    pub fn contains(&self, py:Python, key: PyObject) -> PyResult<bool> {
+        for level in self.list.iter().rev() {
+            
+            let mut index = 0;
+            while index < level.len() {
+                let comparison = Flatlist::py_compare(py, &level[index].payload, &key);
+
+                match comparison {
+                    Ordering::Less => index += 1,
+                    Ordering::Equal => return Ok(true),
+                    Ordering::Greater => break,
+                }
+            }
+        }
+        Ok(false)
+    }
+    
 }
