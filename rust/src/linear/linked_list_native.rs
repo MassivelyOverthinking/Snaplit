@@ -3,7 +3,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::PyObject;
 use pyo3::types::PyList;
 
-#[pyclass]
+
 struct WagonNode {
     data: PyObject,
     next: Option<Box<WagonNode>>

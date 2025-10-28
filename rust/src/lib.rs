@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 mod linear;
 mod trees;
 mod graph;
+mod hashing;
 mod probability;
 mod other;
 
@@ -28,6 +29,8 @@ use graph::rs_digraph_native::Digraph;
 use graph::rs_weighted_graph_native::WeightedGraph;
 use graph::rs_weighted_digraph_native::WeightedDigraph;
 use graph::rs_hypergraph_native::HyperGraph;
+
+// imports from rust folders (Hashing);
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
