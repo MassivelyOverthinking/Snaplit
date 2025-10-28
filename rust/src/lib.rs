@@ -31,6 +31,7 @@ use graph::rs_weighted_digraph_native::WeightedDigraph;
 use graph::rs_hypergraph_native::HyperGraph;
 
 // imports from rust folders (Hashing);
+use hashing::rs_snapmap_native::SnapMap;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
@@ -51,6 +52,7 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<AVLTree>()?;
     m.add_class::<RedBlackTree>()?;
     m.add_class::<Trie>()?;
+    m.add_class::<SnapMap>()?;
     m.add_class::<BloomFilter>()?;
     m.add_class::<CuckooFilter>()?;
     m.add_class::<Flatlist>()?;
