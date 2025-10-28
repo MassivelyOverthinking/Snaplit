@@ -6,9 +6,11 @@ use rustc_hash::{FxHashMap, FxHasher};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+
 /// ---------------------------------------------------------------------------------
 /// Implementation Hashable Enum & Conversion of Python objects -> Rust data types
 /// ---------------------------------------------------------------------------------
+
 enum Hashable {
     Int(i64),
     Float(u64),
@@ -49,6 +51,7 @@ impl CuckooBucket {
     }
 
     fn is_full(&self) -> bool {
+        // Check if the current CuckooBucket (self) is currently filled with elements
         if self.slots.len() >= self.capacity {
             true
         } else {
@@ -61,6 +64,7 @@ impl CuckooBucket {
 /// Implementation of SnapMap structure/class & related operations
 /// ---------------------------------------------------------------------------------
 
+
 #[pyclass]
 pub struct SnapMap {
     capacity: usize,
@@ -71,13 +75,16 @@ pub struct SnapMap {
 
 impl SnapMap {
 
+    // Hardcoded Number of Max eviction/insertion attempts before failing (**Rehash**)
     const MAX_EVICTIONS: usize = 100;
 
     fn generate_map_capacity(capacity: usize, size: usize) -> usize {
+        // Generate the max capacity of elements in both internal layers
         return capacity / size as usize;
     }
 
     fn python_to_rust(py: Python, item: &PyObject) -> PyResult<Hashable> {
+        // Converts Python native data types -> Rust native data types
         if let Ok(i) = item.extract::<i64>(py) {
             return Ok(Hashable::Int(i));
         } else if let Ok(f) = item.extract::<f64>(py) {
@@ -92,6 +99,7 @@ impl SnapMap {
     }
 
     fn generate_first_hash<T: Hash>(&self, key: &T) -> usize {
+        // Generates the intial Hash index for Cuckoo insertion
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
         let hash_value = hasher.finish();
@@ -100,6 +108,7 @@ impl SnapMap {
     }
 
     fn generate_second_hash<T: Hash>(&self, key: &T) -> usize {
+        // Generates the secondary Hash index for Cuckoo insertion
         let mut hasher = FxHasher::default();
         key.hash(&mut hasher);
         let hash_value = hasher.finish();
@@ -200,5 +209,18 @@ impl SnapMap {
 
         // If key doesn't exist in both layers return false to user.
         return Ok(false);
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        for bucket in self.first_layer.iter_mut() {
+            bucket.slots.clear();
+            bucket.index.clear();
+        }
+
+        for bucket in self.second_layer.iter_mut() {
+            bucket.slots.clear();
+            bucket.index.clear();
+        }
+        Ok(())
     }
 }
