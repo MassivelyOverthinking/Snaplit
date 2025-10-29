@@ -58,6 +58,33 @@ impl CuckooBucket {
             false
         }
     }
+
+    fn get_values(&self, py: Python) -> Vec<Py<PyAny>> {
+        // Takes the values from the CuckooBucket and returns a Vec!
+        let mut elements = Vec::new();
+        for (_key, value) in &self.slots {
+            elements.push(value.clone_ref(py));
+        }
+        return elements;
+    }
+
+    fn get_keys(&self, py: Python) -> Vec<Py<PyAny>> {
+        // Takes the keys from the CuckooBucket and returns a Vec!
+        let mut elements = Vec::new();
+        for (key, _value) in &self.slots {
+            elements.push(key.clone_ref(py));
+        }
+        return elements;
+    }
+
+    fn get_items(&self, py: Python) -> Vec<(Py<PyAny>, Py<PyAny>)> {
+        // Takes the item (keys & values) from the CuckooBucket and returns a Vec!
+        let mut elements = Vec::new();
+        for (key, value) in &self.slots {
+            elements.push((key.clone_ref(py), value.clone_ref(py)));
+        }
+        return elements;
+    }
 }
 
 /// ---------------------------------------------------------------------------------
@@ -209,6 +236,50 @@ impl SnapMap {
 
         // If key doesn't exist in both layers return false to user.
         return Ok(false);
+    }
+
+    pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initiate new Vector list
+        let mut elements = Vec::new();
+
+        // use .zip() to iterate over both layers simultaneously
+        for (x_item, y_item) in self.first_layer.iter().zip(&self.second_layer) {
+            // Use get_keys helper method to get all keys stored
+            if !x_item.slots.is_empty() {
+                elements.extend(x_item.get_keys(py).iter().cloned());
+            }
+
+            // Use get_keys helper method to get all keys stored
+            if !y_item.slots.is_empty() {
+                elements.extend(y_item.get_keys(py).iter().cloned());
+            }
+        }
+        // Convert Rust vector into PyList
+        Ok(PyList::new(py, &elements))
+    }
+
+    pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initiate new Vector list
+        let mut elements = Vec::new();
+
+        // use .zip() to iterate over both layers simultaneously
+        for (x_value, y_value) in self.first_layer.iter().zip(&self.second_layer) {
+            // Use get_values helper method to get all values stored
+            if !x_value.slots.is_empty() {
+                elements.extend(x_value.get_keys(py).iter().cloned());
+            }
+
+            // Use get_values helper method to get all values stored
+            if !y_value.slots.is_empty() {
+                elements.extend(y_value.get_keys(py).iter().cloned());
+            }
+        }
+        // Convert Rust vector into PyList
+        Ok(PyList::new(py, &elements))
+    }
+
+    pub fn items() {
+
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
