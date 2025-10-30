@@ -242,16 +242,13 @@ impl SnapMap {
         // Initiate new Vector list
         let mut elements = Vec::new();
 
-        // use .zip() to iterate over both layers simultaneously
-        for (x_item, y_item) in self.first_layer.iter().zip(&self.second_layer) {
-            // Use get_keys helper method to get all keys stored
-            if !x_item.slots.is_empty() {
-                elements.extend(x_item.get_keys(py).iter().cloned());
-            }
-
-            // Use get_keys helper method to get all keys stored
-            if !y_item.slots.is_empty() {
-                elements.extend(y_item.get_keys(py).iter().cloned());
+        // Iterate over Buckets in both internal Layers
+        for layer in [&self.first_layer, &self.second_layer] {
+            for bucket in layer {
+                if !bucket.slots.is_empty() {
+                    // Added cloned keys to Elements Vector
+                    elements.extend(bucket.get_keys(py).iter().cloned());
+                }
             }
         }
         // Convert Rust vector into PyList
@@ -262,24 +259,34 @@ impl SnapMap {
         // Initiate new Vector list
         let mut elements = Vec::new();
 
-        // use .zip() to iterate over both layers simultaneously
-        for (x_value, y_value) in self.first_layer.iter().zip(&self.second_layer) {
-            // Use get_values helper method to get all values stored
-            if !x_value.slots.is_empty() {
-                elements.extend(x_value.get_keys(py).iter().cloned());
-            }
-
-            // Use get_values helper method to get all values stored
-            if !y_value.slots.is_empty() {
-                elements.extend(y_value.get_keys(py).iter().cloned());
+        // Iterate over Buckets in both internal Layers
+        for layer in [&self.first_layer, &self.second_layer] {
+            for bucket in layer {
+                if !bucket.slots.is_empty() {
+                    // Added cloned values to Elements Vector
+                    elements.extend(bucket.get_values(py).iter().cloned());
+                }
             }
         }
         // Convert Rust vector into PyList
         Ok(PyList::new(py, &elements))
     }
 
-    pub fn items() {
+    pub fn items<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initiate new Vector list
+        let mut elements = Vec::new();
 
+        // Iterate over Buckets in both internal Layers
+        for layer in [&self.first_layer, &self.second_layer] {
+            for bucket in layer {
+                if !bucket.slots.is_empty() {
+                    // Added cloned values to Elements Vector
+                    elements.extend(bucket.get_items(py).iter().cloned());
+                }
+            }
+        }
+        // Convert Rust vector into PyList
+        Ok(PyList::new(py, &elements))
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
