@@ -1,11 +1,10 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PyTuple};
+use pyo3::types::{IntoPyDict, PyDict, PyList, PyTuple};
 use pyo3::PyObject;
 use rustc_hash::{FxHashMap, FxHasher};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-
 
 /// ---------------------------------------------------------------------------------
 /// Implementation Hashable Enum & Conversion of Python objects -> Rust data types
@@ -33,7 +32,6 @@ impl Hash for Hashable {
 /// Implementation of Cuckoo Bucket structure/class & related operations
 /// ---------------------------------------------------------------------------------
  
-
 #[derive(Debug, Clone)]
 struct CuckooBucket {
     capacity: usize,
@@ -52,11 +50,7 @@ impl CuckooBucket {
 
     fn is_full(&self) -> bool {
         // Check if the current CuckooBucket (self) is currently filled with elements
-        if self.slots.len() >= self.capacity {
-            true
-        } else {
-            false
-        }
+        self.slots.len() >= self.capacity 
     }
 
     fn get_values(&self, py: Python) -> Vec<Py<PyAny>> {
@@ -91,7 +85,6 @@ impl CuckooBucket {
 /// Implementation of SnapMap structure/class & related operations
 /// ---------------------------------------------------------------------------------
 
-
 #[pyclass]
 pub struct SnapMap {
     capacity: usize,
@@ -102,7 +95,6 @@ pub struct SnapMap {
 }
 
 impl SnapMap {
-
     // Hardcoded Number of Max eviction/insertion attempts before failing (**Rehash**)
     const MAX_EVICTIONS: usize = 100;
 
@@ -165,6 +157,10 @@ impl SnapMap {
         let mut key = key;
         let mut value = value;
 
+        if self.map_size >= self.capacity {
+            return Err(PyValueError::new_err(format!("Max capacity ({}) reached! Unable to insert key-value", self.capacity)));
+        }
+
         // Try inserting key-value pair in Map-structure (100 attempts)
         for _ in 0..Self::MAX_EVICTIONS {
 
@@ -212,8 +208,43 @@ impl SnapMap {
             value = evicted_pair.1;
         }
 
-        // If all 100 insertion attempts fail return false (**Rehash**)
-        Ok(false)
+        // If all 100 insertion attempts fail return Error (**Rehash**)
+        Err(PyValueError::new_err(format!("Eviction maximum ({}) reached! Unable to insert key-values", Self::MAX_EVICTIONS)))
+    }
+
+    pub fn remove(&mut self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Convert key to Rust data type & produce 2 hash-values
+        let rust_hash = SnapMap::python_to_rust(py, &key)?;
+
+        let idx1 = SnapMap::generate_first_hash(&self, &rust_hash);
+        let idx2 = SnapMap::generate_second_hash(&self, &rust_hash);
+
+        // Compute a new hash value for indexing in CuckooBucket
+        let mut h = DefaultHasher::new();
+        rust_hash.hash(&mut h);
+        let idx_value = h.finish();
+
+        // Extract mutable references to the 2 Buckets
+        let first_bucket = &mut self.first_layer[idx1];
+        let second_bucket = &mut self.second_layer[idx2];
+
+        // Check if the 1st Bucket holds value - If so remove it, update internal variables and return it.
+        if let Some(positon) = first_bucket.index.get(&idx_value) {
+            let (_, rem_val) = first_bucket.slots.remove(*positon);
+            first_bucket.index.remove(&idx_value);
+            self.map_size -= 1;
+            return Ok(rem_val);
+        }
+
+        // Check if the 2nd Bucket holds value - If so remove it, update internal variables and return it.
+        if let Some(positon) = second_bucket.index.get(&idx_value) {
+            let (_, rem_val) = second_bucket.slots.remove(*positon);
+            second_bucket.index.remove(&idx_value);
+            self.map_size -= 1;
+            return Ok(rem_val);
+        }
+        // DEFAULT = Returns 'None' value if key-value is not found in both layers.
+        Ok(py.None())
     }
 
     pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
@@ -296,6 +327,26 @@ impl SnapMap {
         return Ok(false);
     }
 
+    pub fn from_keys<'py>(&self, py: Python<'py>, iterable: &PyAny) -> PyResult<&'py PyList> {
+        // Initiate new Vector list
+        let mut elements = Vec::new();
+        
+        // Iterate over all key elements in Iterable parameter.
+        for key_object in iterable.iter()? {
+            // Extract the key from behind Result-type.
+            let key = key_object?;
+            // Use internal .get() method to extract final value.
+            let value = self.get(py, key.to_object(py))?;
+
+            // Check if the value recieved is 'None' before adding to elements Vec.
+            if !value.is_none(py) {
+                elements.push(value);
+            }
+        }
+        // Convert and return the elements list.
+        Ok(PyList::new(py, &elements))
+    }
+
     pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         // Initiate new Vector list
         let mut elements = Vec::new();
@@ -365,6 +416,27 @@ impl SnapMap {
         Ok(Py::new(py, new_map)?.into_py(py))
     }
 
+    pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        // Extract the necessary metrics from internal variables
+        let percentage = self.percentage()?;
+        let keys = self.keys(py)?.into();
+        let values = self.values(py)?.into();
+
+        // Contruct a Rust Vector consisting of individual Tuples(String, Object).
+        let key_vals: Vec<(&str, PyObject)> = vec![
+            ("type", "SnapMap".to_object(py)),
+            ("capacity", self.capacity.to_object(py)),
+            ("size", self.map_size.to_object(py)),
+            ("percentage", percentage.to_object(py)),
+            ("keys", keys),
+            ("values", values),
+        ];
+
+        // Convert Vector to Python Dictionary and return value.
+        let dict = key_vals.into_py_dict(py);
+        Ok(dict)
+    }
+
     pub fn capacity(&self) -> PyResult<usize> {
         // Return the internal capacity property from SnapMap.
         Ok(self.capacity)
@@ -375,16 +447,29 @@ impl SnapMap {
         Ok(self.map_size)
     }
 
+    pub fn percentage(&self) -> PyResult<f64> {
+        Ok((self.map_size as f64 / self.capacity as f64) * 100.0)
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        Ok(self.map_size == 0)
+    }
+
     pub fn clear(&mut self) -> PyResult<()> {
+        // Iterate through the 1st layer and resets all internal variables and vectors.
         for bucket in self.first_layer.iter_mut() {
             bucket.slots.clear();
             bucket.index.clear();
         }
 
+        // Iterate through the 2nd layer and resets all internal variables and vectors.
         for bucket in self.second_layer.iter_mut() {
             bucket.slots.clear();
             bucket.index.clear();
         }
+
+        self.map_size = 0;
+
         Ok(())
     }
 }
