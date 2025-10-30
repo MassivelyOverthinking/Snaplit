@@ -469,7 +469,6 @@ impl SnapMap {
         }
 
         self.map_size = 0;
-
         Ok(())
     }
 }
