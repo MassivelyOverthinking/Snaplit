@@ -1,6 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::{PyList, PyTuple};
 use pyo3::PyObject;
 use rustc_hash::{FxHashMap, FxHasher};
 use std::collections::hash_map::DefaultHasher;
@@ -216,6 +216,60 @@ impl SnapMap {
         Ok(false)
     }
 
+    pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Convert key to Rust data type & produce 2 hash-values
+        let rust_hash = SnapMap::python_to_rust(py, &key)?;
+
+        let idx1 = SnapMap::generate_first_hash(&self, &rust_hash);
+        let idx2 = SnapMap::generate_second_hash(&self, &rust_hash);
+
+        // Attempt to find key-value in first layer
+        for (k, v) in &self.first_layer[idx1].slots {
+            if k.as_ref(py).eq(key.as_ref(py))? {
+                return Ok(v.clone_ref(py));
+            }
+        }
+
+        // Attempt to find key-value in second layer
+        for (k, v) in &self.second_layer[idx2].slots {
+            if k.as_ref(py).eq(key.as_ref(py))? {
+                return Ok(v.clone_ref(py));
+            }
+        }
+        // DEFAULT = Returns 'None' value if key-value is not found in both layers.
+        return Ok(py.None());
+    }
+
+    pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
+        // Convert key to Rust data type & produce 2 hash-values
+        let rust_hash = SnapMap::python_to_rust(py, &key)?;
+
+        let idx1 = SnapMap::generate_first_hash(&self, &rust_hash);
+        let idx2 = SnapMap::generate_second_hash(&self, &rust_hash);
+
+        // Extract mutable references to the 2 Buckets
+        let first_bucket = &mut self.first_layer[idx1];
+        let second_bucket = &mut self.second_layer[idx2];
+
+        // Iterate through the first bucket slots and compare keys.
+        for (k, v) in &mut first_bucket.slots {
+            if k.as_ref(py).eq(key.as_ref(py))? {
+                *v = new_value.clone_ref(py);
+                return Ok(true);
+            }
+        }
+
+        // Iterate through the second bucket slots and compare keys.
+        for (k, v) in &mut second_bucket.slots {
+            if k.as_ref(py).eq(key.as_ref(py))? {
+                *v = new_value.clone_ref(py);
+                return Ok(true);
+            }
+        }
+        // DEFAULT = Returns 'False' value if key-value is not found in both layers.
+        Ok(false)
+    }
+
     pub fn contains(&self, py: Python, key: PyObject) -> PyResult<bool> {
         // Convert key to Rust data type & produce 2 hash-values
         let rust_hash = SnapMap::python_to_rust(py, &key)?;
@@ -291,6 +345,29 @@ impl SnapMap {
         }
         // Convert Rust vector into PyList
         Ok(PyList::new(py, &elements))
+    }
+
+    pub fn copy(&self, py: Python<'_>) -> PyResult<PyObject> {
+        // Instantiate an empty SnapMap variable.
+        let mut new_map = SnapMap::new(Some(self.capacity), Some(self.bucket_size));
+
+        // Iterate through all stored items.
+        for tuple in self.items(py)?.iter() {
+            // Downcast entry to PyTuple to extract key & value pairs safely.
+            let tup = tuple.downcast::<PyTuple>()?;
+            let key = tup.get_item(0)?;
+            let value = tup.get_item(1)?;
+
+            // Converts &PyAny -> PyObjects to safely add to new_map variable.
+            new_map.insert(py, key.to_object(py), value.to_object(py))?;
+        }
+        // Convert the new, fully-loaded SnapMap to a new PyObject.
+        Ok(Py::new(py, new_map)?.into_py(py))
+    }
+
+    pub fn capacity(&self) -> PyResult<usize> {
+        // Return the internal capacity property from SnapMap.
+        Ok(self.capacity)
     }
 
     pub fn size(&self) -> PyResult<usize> {
