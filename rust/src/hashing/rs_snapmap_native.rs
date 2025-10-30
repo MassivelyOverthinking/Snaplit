@@ -95,6 +95,7 @@ impl CuckooBucket {
 #[pyclass]
 pub struct SnapMap {
     capacity: usize,
+    map_size: usize,
     bucket_size: usize,
     first_layer: Vec<CuckooBucket>,
     second_layer: Vec<CuckooBucket>,
@@ -153,6 +154,7 @@ impl SnapMap {
         let final_size = Self::generate_map_capacity(sm_cap, sm_buc);
         Self {
             capacity: sm_cap,
+            map_size: 0,
             bucket_size: sm_buc,
             first_layer: vec![CuckooBucket::new(sm_buc); final_size],
             second_layer: vec![CuckooBucket::new(sm_buc); final_size],
@@ -186,6 +188,7 @@ impl SnapMap {
                 first_bucket.slots.push((key.clone_ref(py), value.clone_ref(py)));
                 let position = first_bucket.slots.len() - 1;
                 first_bucket.index.insert(idx_value, position);
+                self.map_size += 1;
                 return Ok(true);
             } 
 
@@ -194,6 +197,7 @@ impl SnapMap {
                 second_bucket.slots.push((key.clone_ref(py), value.clone_ref(py)));
                 let position = second_bucket.slots.len() - 1;
                 second_bucket.index.insert(idx_value, position);
+                self.map_size += 1;
                 return Ok(true);
             }
 
@@ -287,6 +291,11 @@ impl SnapMap {
         }
         // Convert Rust vector into PyList
         Ok(PyList::new(py, &elements))
+    }
+
+    pub fn size(&self) -> PyResult<usize> {
+        // Return the internal .map_sisze() counter from SnapMap.
+        Ok(self.map_size)
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
