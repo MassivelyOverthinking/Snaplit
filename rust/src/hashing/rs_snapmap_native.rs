@@ -187,6 +187,14 @@ impl SnapMap {
             let first_bucket = &mut self.first_layer[idx1];
             let second_bucket = &mut self.second_layer[idx2];
 
+            // Duplicate check for both buckets.
+            if first_bucket.slots.iter().any(|(k, _)| k.as_ref(py).eq(key.as_ref(py)).unwrap_or(false)) {
+                return Ok(false);
+            }
+            if second_bucket.slots.iter().any(|(k, _)| k.as_ref(py).eq(key.as_ref(py)).unwrap_or(false)) {
+                return Ok(false);
+            }
+
             // Attempt to insert key-value pair in first layer
             if !first_bucket.is_full() {
                 first_bucket.slots.push((key.clone_ref(py), value.clone_ref(py)));
