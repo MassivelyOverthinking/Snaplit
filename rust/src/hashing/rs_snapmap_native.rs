@@ -79,6 +79,14 @@ impl CuckooBucket {
         }
         return elements;
     }
+
+    fn shift_indices(&mut self, position: usize) {
+        for (_, pos) in self.index.iter_mut() {
+            if *pos > position {
+                *pos -= 1;
+            }
+        }
+    }
 }
 
 /// ---------------------------------------------------------------------------------
@@ -229,17 +237,25 @@ impl SnapMap {
         let second_bucket = &mut self.second_layer[idx2];
 
         // Check if the 1st Bucket holds value - If so remove it, update internal variables and return it.
-        if let Some(positon) = first_bucket.index.get(&idx_value) {
-            let (_, rem_val) = first_bucket.slots.remove(*positon);
+        let pos_option1 = first_bucket.index.get(&idx_value).copied();
+        if let Some(positon) = pos_option1 {
+            let (_, rem_val) = first_bucket.slots.remove(positon);
+            
             first_bucket.index.remove(&idx_value);
+            first_bucket.shift_indices(positon);
+
             self.map_size -= 1;
             return Ok(rem_val);
         }
 
         // Check if the 2nd Bucket holds value - If so remove it, update internal variables and return it.
-        if let Some(positon) = second_bucket.index.get(&idx_value) {
-            let (_, rem_val) = second_bucket.slots.remove(*positon);
+        let pos_option2 = second_bucket.index.get(&idx_value).copied();
+        if let Some(positon) = pos_option2 {
+            let (_, rem_val) = second_bucket.slots.remove(positon);
+
             second_bucket.index.remove(&idx_value);
+            second_bucket.shift_indices(positon);
+
             self.map_size -= 1;
             return Ok(rem_val);
         }
@@ -448,10 +464,12 @@ impl SnapMap {
     }
 
     pub fn percentage(&self) -> PyResult<f64> {
+        // Give a percentage count of how full the current SnapMap is.
         Ok((self.map_size as f64 / self.capacity as f64) * 100.0)
     }
 
     pub fn is_empty(&self) -> PyResult<bool> {
+        // Checks whether the current SnapMap hold no elements. 
         Ok(self.map_size == 0)
     }
 
