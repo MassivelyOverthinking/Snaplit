@@ -6,7 +6,6 @@ use rustc_hash::{FxHashMap, FxHasher};
 use core::hash;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::str::pattern::SearchStep;
 
 /// ---------------------------------------------------------------------------------
 /// Implementation of Enum types & Conversion of Python objects -> Rust data types
@@ -104,7 +103,7 @@ impl RhoodMap {
         Self {
             capacity: rhm_cap,
             map_size: 0,
-            series: vec![Slot::Emtpy; rhm_cap],
+            series: vec![Slot::Empty; rhm_cap],
         }
     }
 
@@ -145,6 +144,33 @@ impl RhoodMap {
 
     }
 
+    pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Convert key to Rust data type & produce hash-value for initial indexing.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let mut index = Self::generate_hash(&self, &rust_hash);
+
+        // Iterate over internal rhoodMap Vector - If iterate full length and no return, Vector is full!
+        for _ in 0..self.capacity {
+            // Match Slot at 'Index'.
+            match &self.series[index] {
+                // If Slot::Empty -> Return 'None' (Value not found!).
+                Slot::Empty => {
+                    return Ok(py.None());
+                },
+                // If Slot::Occupied -> Return stored value from RobinBucket (Value found!).
+                Slot::Occupied(bucket) => {
+                    if bucket.key.as_ref(py).eq(key.as_ref(py))? {
+                        return Ok(bucket.key.clone_ref(py));
+                    }
+                }
+            }
+            // Increment index by 1 (Cyclical counter).
+            index = (index + 1) % self.capacity;
+        }
+        // DEFAULT = Iterated over entire .Series Vector and no value was found!
+        Ok(py.None())
+    }
+
     pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
         // Convert key to Rust data type & produce hash-value for initial indexing.
         let rust_hash = Self::python_to_rust(py, &key)?;
@@ -152,7 +178,7 @@ impl RhoodMap {
 
         // Internal loop to iterate over entries starting from hashed index
         loop {
-            match &self.series[index] {
+            match &mut self.series[index] {
                 // If the loop encounters an 'Empty' slot -> No updating occurs.
                 Slot::Empty => {
                     return Ok(false);
@@ -195,9 +221,12 @@ impl RhoodMap {
     }
 
     pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Instantializa new Rust Vectors to store key-values.
         let mut elements = Vec::new();
 
+        // Iterate through individual Slots in internal rhoodMap Vector.
         for slot in self.series.iter() {
+            // Match Slot enum-type.
             match slot {
                 Slot::Occupied(bucket) => {
                     elements.push(&bucket.key);
@@ -207,16 +236,66 @@ impl RhoodMap {
                 }
             }
         }
-
+        // Convert 'Elements' vectors into a Python native list.
         Ok(PyList::new(py, elements))
     }
 
     pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
-        
+        // Instantializa new Rust Vectors to store values.
+        let mut elements = Vec::new();
+
+        // Iterate through individual Slots in internal rhoodMap Vector.
+        for slot in self.series.iter() {
+            // Match Slot enum-type.
+            match slot {
+                Slot::Occupied(bucket) => {
+                    elements.push(&bucket.value);
+                },
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert 'Elements' vectors into a Python native list.
+        Ok(PyList::new(py, elements))
     }
 
     pub fn items<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
-        
+        // Instantializa new Rust Vectors to store key-value pairs.
+        let mut elements = Vec::new();
+
+        // Iterate through individual Slots in internal rhoodMap Vector.
+        for slot in self.series.iter() {
+            // Match Slot enum-type.
+            match slot {
+                Slot::Occupied(bucket) => {
+                    elements.push((&bucket.key, &bucket.value));
+                },
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert 'Elements' vectors into a Python native list.
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        // Extract the necessary metrics from internal variables
+        let percentage = self.percentage()?;
+        let keys = self.keys(py)?.into();
+        let values = self.values(py)?.into();
+
+        let key_vals: Vec<(&str, PyObject)> = vec![
+            ("type", "RhoodMap".to_object(py)),
+            ("capacity", self.capacity.to_object(py)),
+            ("size", self.map_size.to_object(py)),
+            ("percentage", percentage.to_object(py)),
+            ("keys", keys),
+            ("values", values),
+        ];
+        let dict = key_vals.into_py_dict(py);
+        Ok(dict)
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
@@ -228,7 +307,7 @@ impl RhoodMap {
     }
 
     pub fn percentage(&self) -> PyResult<f64> {
-        let precentage = (self.map_size as f64 / self.capacity as f64) / 100;
+        let precentage = (self.map_size as f64 / self.capacity as f64) / 100.0;
         Ok(precentage)
     }
 
@@ -238,7 +317,7 @@ impl RhoodMap {
 
     pub fn clear(&mut self) -> PyResult<()> {
         self.map_size = 0;
-        self.series = vec![Slot::Emtpy; self.capacity];
+        self.series = vec![Slot::Empty; self.capacity];
         Ok(())
     }
 }
