@@ -120,22 +120,24 @@ impl RhoodMap {
         let mut index = Self::generate_hash(&self, &rust_hash);
 
         // Generate the new Bucket to insert & Flag.
-        let bucket = RobinBucket::new(key, value, index);
-        let mut current_position = index;
-        let mut flag: bool = false;
-
-        while !flag {
-            if matches!(self.series[index], Slot::Empty) {
-                self.series[index] = Slot::Occupied(bucket);
-                self.map_size += 1;
-                return Ok(true);
-            } else if matches!(self.series[index], Slot::Occupied(buck)) {
-                if self.series[index] > bucket.distance {
-                    let removed_entry = self.series[index];
+        let mut new_bucket = RobinBucket::new(key.clone_ref(py), value, index);
+        
+        for _ in 0..self.capacity {
+            match &mut self.series[index] {
+                Slot::Empty => {
+                    self.series[index] = Slot::Occupied(new_bucket);
+                    self.map_size += 1;
+                    return Ok(true);
+                },
+                Slot::Occupied(bucket) => {
+                    if bucket.distance >= new_bucket.distance {
+                        self.series[index] = Slot::Occupied(new_bucket);
+                        self.map_size += 1;
+                        new_bucket = bucket.clone();
+                    }
                 }
-                current_position += 1;
             }
-            
+            index = (index + 1) % self.capacity;
         }
         return Err(PyValueError::new_err(format!("Could not insert key {} into RhoodMap", key)));
     }
@@ -220,6 +222,26 @@ impl RhoodMap {
         }
     }
 
+    pub fn from_keys<'py>(&self, py: Python<'py>, iterable: &PyAny) -> PyResult<&'py PyList> {
+        // Initiate new Vector list.
+        let mut elements = Vec::new();
+
+        // Iterate over all key elements in Iterable parameter.
+        for key_object in iterable.iter()? {
+            // Extract the key from behind Result-type.
+            let key = key_object?;
+            // Use internal .get() method to extract final value.
+            let value = self.get(py, key.to_object(py))?;
+
+            // Check if the value recieved is 'None' before adding to elements Vec.
+            if !value.is_none(py) {
+                elements.push(value);
+            }
+        }
+        // Convert and return the elements list.
+        Ok(PyList::new(py, &elements))
+    }
+
     pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         // Instantializa new Rust Vectors to store key-values.
         let mut elements = Vec::new();
@@ -280,12 +302,31 @@ impl RhoodMap {
         Ok(PyList::new(py, elements))
     }
 
+    pub fn copy(&self, py: Python<'_>) -> PyResult<PyObject> {
+        // Instantiate an empty rhoodMap variable.
+        let mut new_map = RhoodMap::new(Some(self.capacity));
+
+        // Iterate through all stored items.
+        for tuple in self.items(py)?.iter() {
+            // Downcast entry to PyTuple to extract key & value pairs safely.
+            let tup = tuple.downcast::<PyTuple>()?;
+            let key = tup.get_item(0)?;
+            let value = tup.get_item(1)?;
+
+            // Converts &PyAny -> PyObjects to safely add to new_map variable.
+            new_map.insert(py, key.to_object(py), value.to_object(py))?;
+        }
+        // Convert the new, fully-loaded rhoodMap to a new PyObject.
+        Ok(Py::new(py, new_map)?.into_py(py))
+    }
+
     pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
         // Extract the necessary metrics from internal variables
         let percentage = self.percentage()?;
         let keys = self.keys(py)?.into();
         let values = self.values(py)?.into();
 
+        // Contruct a Rust Vector consisting of individual Tuples(String, Object).
         let key_vals: Vec<(&str, PyObject)> = vec![
             ("type", "RhoodMap".to_object(py)),
             ("capacity", self.capacity.to_object(py)),
@@ -294,6 +335,8 @@ impl RhoodMap {
             ("keys", keys),
             ("values", values),
         ];
+
+        // Convert Vector to Python Dictionary and return value.
         let dict = key_vals.into_py_dict(py);
         Ok(dict)
     }
