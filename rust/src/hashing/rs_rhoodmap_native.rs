@@ -6,6 +6,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use core::hash;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::str::pattern::SearchStep;
 
 /// ---------------------------------------------------------------------------------
 /// Implementation of Enum types & Conversion of Python objects -> Rust data types
@@ -13,7 +14,7 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
 enum Slot {
-    Emtpy,
+    Empty,
     Occupied(RobinBucket),
 }
 
@@ -120,12 +121,12 @@ impl RhoodMap {
         let mut index = Self::generate_hash(&self, &rust_hash);
 
         // Generate the new Bucket to insert & Flag.
-        let bucket = RobinBucket::new(py, key, value, index);
+        let bucket = RobinBucket::new(key, value, index);
         let mut current_position = index;
         let mut flag: bool = false;
 
         while !flag {
-            if matches!(self.series[index], Slot::Emtpy) {
+            if matches!(self.series[index], Slot::Empty) {
                 self.series[index] = Slot::Occupied(bucket);
                 self.map_size += 1;
                 return Ok(true);
@@ -145,11 +146,32 @@ impl RhoodMap {
     }
 
     pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
+        // Convert key to Rust data type & produce hash-value for initial indexing.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let mut index = Self::generate_hash(&self, &rust_hash);
 
+        // Internal loop to iterate over entries starting from hashed index
+        loop {
+            match &self.series[index] {
+                // If the loop encounters an 'Empty' slot -> No updating occurs.
+                Slot::Empty => {
+                    return Ok(false);
+                },
+                // If the loop encounters an 'Occupied' slot -> Check if 'Key' matches and then update.
+                Slot::Occupied(bucket) => {
+                    if bucket.key.as_ref(py).eq(key.as_ref(py))? {
+                        bucket.value = new_value;
+                        return Ok(true);
+                    }
+                }
+            }
+            // Increment the index value by 1 (Cyclical counter). 
+            index = (index + 1) % self.capacity;
+        }
     }
 
     pub fn contains(&self, py: Python, key: PyObject) -> PyResult<bool> {
-        // Convert key to Rust data type & produce hash-value.
+        // Convert key to Rust data type & produce hash-value for initial indexing.
         let rust_hash = Self::python_to_rust(py, &key)?;
         let mut index = Self::generate_hash(&self, &rust_hash);
 
@@ -157,12 +179,12 @@ impl RhoodMap {
         loop {
             match &self.series[index] {
                 // If the loop encounters an 'Empty' slot -> Return 'False'.
-                Slot::Emtpy => {
+                Slot::Empty => {
                     return Ok(false)
                 },
                 // If the loop encounters an 'Occupied' slot -> Check the stored 'Key' value.
-                Slot::Occupied(state) => {
-                    if state.key.as_ref(py).eq(key.as_ref(py))? {
+                Slot::Occupied(bukcet) => {
+                    if bukcet.key.as_ref(py).eq(key.as_ref(py))? {
                         return Ok(true);
                     }
                 }
@@ -170,5 +192,53 @@ impl RhoodMap {
             // Increment the index value by 1 (Cyclical counter)
             index = (index - 1) & self.capacity;
         }
+    }
+
+    pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        let mut elements = Vec::new();
+
+        for slot in self.series.iter() {
+            match slot {
+                Slot::Occupied(bucket) => {
+                    elements.push(&bucket.key);
+                },
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        
+    }
+
+    pub fn items<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        
+    }
+
+    pub fn capacity(&self) -> PyResult<usize> {
+        Ok(self.capacity)
+    }
+
+    pub fn size(&self) -> PyResult<usize> {
+        Ok(self.map_size)
+    }
+
+    pub fn percentage(&self) -> PyResult<f64> {
+        let precentage = (self.map_size as f64 / self.capacity as f64) / 100;
+        Ok(precentage)
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        Ok(self.map_size <= 0)
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        self.map_size = 0;
+        self.series = vec![Slot::Emtpy; self.capacity];
+        Ok(())
     }
 }
