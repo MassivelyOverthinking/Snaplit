@@ -7,8 +7,6 @@ use core::hash;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use crate::hashing::rs_snapmap_native::SnapMap;
-
 /// ---------------------------------------------------------------------------------
 /// Implementation of Enum types & Conversion of Python objects -> Rust data types
 /// ---------------------------------------------------------------------------------
@@ -50,7 +48,7 @@ struct RobinBucket {
 }
 
 impl RobinBucket {
-    fn new(py: Python, key: PyObject, value: PyObject, hash: usize) -> Self {
+    fn new(key: PyObject, value: PyObject, hash: usize) -> Self {
         Self { 
             key: key,
             value: value,
@@ -119,16 +117,58 @@ impl RhoodMap {
 
         // Convert key to Rust data type & produce hash-value.
         let rust_hash = Self::python_to_rust(py, &key)?;
-        let index = Self::generate_hash(&self, &rust_hash);
+        let mut index = Self::generate_hash(&self, &rust_hash);
 
-        // Generate the new Bucket to insert.
+        // Generate the new Bucket to insert & Flag.
         let bucket = RobinBucket::new(py, key, value, index);
+        let mut current_position = index;
+        let mut flag: bool = false;
 
-        if matches!(self.series[index], Slot::Emtpy) {
-            self.series[index] = Slot::Occupied(bucket);
-            self.map_size += 1;
-            return Ok(true);
+        while !flag {
+            if matches!(self.series[index], Slot::Emtpy) {
+                self.series[index] = Slot::Occupied(bucket);
+                self.map_size += 1;
+                return Ok(true);
+            } else if matches!(self.series[index], Slot::Occupied(buck)) {
+                if self.series[index] > bucket.distance {
+                    let removed_entry = self.series[index];
+                }
+                current_position += 1;
+            }
+            
         }
+        return Err(PyValueError::new_err(format!("Could not insert key {} into RhoodMap", key)));
+    }
 
+    pub fn remove(&mut self, py: Python, key: PyObject) -> PyResult<PyObject> {
+
+    }
+
+    pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
+
+    }
+
+    pub fn contains(&self, py: Python, key: PyObject) -> PyResult<bool> {
+        // Convert key to Rust data type & produce hash-value.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let mut index = Self::generate_hash(&self, &rust_hash);
+
+        // Internal loop to iterate over entries starting from hashed index
+        loop {
+            match &self.series[index] {
+                // If the loop encounters an 'Empty' slot -> Return 'False'.
+                Slot::Emtpy => {
+                    return Ok(false)
+                },
+                // If the loop encounters an 'Occupied' slot -> Check the stored 'Key' value.
+                Slot::Occupied(state) => {
+                    if state.key.as_ref(py).eq(key.as_ref(py))? {
+                        return Ok(true);
+                    }
+                }
+            }
+            // Increment the index value by 1 (Cyclical counter)
+            index = (index - 1) & self.capacity;
+        }
     }
 }
