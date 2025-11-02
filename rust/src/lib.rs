@@ -20,7 +20,6 @@ use linear::priority_queue_native::PriorityQueue;
 // imports from rust folders (Tree)
 use trees::rs_binary_tree_native::BinarySearchTree;
 use trees::rs_avl_tree_native::AVLTree;
-use trees::rs_redblack_tree_native::RedBlackTree;
 use trees::rs_trie_native::Trie;
 
 // imports from rust folders (Graph)
@@ -32,6 +31,7 @@ use graph::rs_hypergraph_native::HyperGraph;
 
 // imports from rust folders (Hashing);
 use hashing::rs_snapmap_native::SnapMap;
+use hashing::rs_rhoodmap_native::RhoodMap;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
@@ -50,9 +50,9 @@ pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PriorityQueue>()?;
     m.add_class::<BinarySearchTree>()?;
     m.add_class::<AVLTree>()?;
-    m.add_class::<RedBlackTree>()?;
     m.add_class::<Trie>()?;
     m.add_class::<SnapMap>()?;
+    m.add_class::<RhoodMap>()?;
     m.add_class::<BloomFilter>()?;
     m.add_class::<CuckooFilter>()?;
     m.add_class::<Flatlist>()?;

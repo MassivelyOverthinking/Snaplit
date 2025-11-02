@@ -2,8 +2,6 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyTuple};
 use pyo3::PyObject;
-use rustc_hash::{FxHashMap, FxHasher};
-use core::hash;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::swap;
@@ -94,6 +92,24 @@ impl RhoodMap {
         let map_capacity = self.capacity;
         return (hash_value as usize) % map_capacity;
     }
+
+    fn shift_slots(&mut self, start: usize) -> PyResult<()> {
+        let mut index = start;
+
+        for _ in 0..self.capacity {
+            match &mut self.series[index] {
+                Slot::Empty => {
+                    return Ok(());
+                },
+                Slot::Occupied(bucket) => {
+                    self.series[index - 1] = Slot::Occupied(bucket.clone());
+                    self.series[index] = Slot::Empty;
+                }
+            }
+            index = (index + 1) % self.capacity;
+        }
+        return Err(PyValueError::new_err(format!("Error occurred shifting indicies")))
+    }
 }
 
 #[pymethods]
@@ -147,7 +163,28 @@ impl RhoodMap {
     }
 
     pub fn remove(&mut self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Convert key to Rust data type & produce hash-value.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let mut index = Self::generate_hash(&self, &rust_hash);
 
+        for _ in 0..self.capacity {
+            match &mut self.series[index] {
+                Slot::Empty => {
+                    return Err(PyValueError::new_err(format!("Could not locate key {} in rhoodMap", key)));
+                },
+                Slot::Occupied(bucket) => {
+                    if bucket.key.as_ref(py).eq(key.as_ref(py))? {
+                        let removed_value = bucket;
+                        Self::shift_slots(self, index + 1);
+                        self.map_size -= 1;
+                        return Ok(removed_value.value.clone_ref(py));
+                    }
+                }
+            }
+            index = (index + 1) % self.capacity;
+        }
+        // DEFAULT = Raise an Error if attempted to insert the value too many times without success.
+        return Err(PyValueError::new_err(format!("Could not locate key {} in rhoodMap", key)));
     }
 
     pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
@@ -346,23 +383,28 @@ impl RhoodMap {
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
+        // Returns internal var: 'capacity' to user. 
         Ok(self.capacity)
     }
 
     pub fn size(&self) -> PyResult<usize> {
+        // Returns internal var: 'map_size' to user.
         Ok(self.map_size)
     }
 
     pub fn percentage(&self) -> PyResult<f64> {
+        // Calculate the percentage of internal Rust Vector is currently occupied.
         let precentage = (self.map_size as f64 / self.capacity as f64) / 100.0;
         Ok(precentage)
     }
 
     pub fn is_empty(&self) -> PyResult<bool> {
+        // Returns 'True' if the internal var: 'map_size' is less than or equal to 0. 
         Ok(self.map_size <= 0)
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
+        // Set Slots in internal Rust Vectors to Slot::Empty & reset variable 'map_size' to 0.
         self.map_size = 0;
         self.series = vec![Slot::Empty; self.capacity];
         Ok(())
