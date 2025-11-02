@@ -1,4 +1,4 @@
-# 📦 Snaplit - Rust-powered Data Structures in Python. 
+# 🔢 Snaplit - Rust-powered Data Structures in Python. 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
@@ -6,25 +6,36 @@
 
 ---
 
-## 🤔 What is Snaplit?
+## ❓ What is Snaplit?
 
-Macho is a lightweight, high-performance in-memory caching library designed with customizability at its core. Unlike heavyweight distributed caching systems (Redis & Memcached), Macho is entirely self-contained, running directly in your local Python environment without any external dependencies.
-Macho enables Python developers to define and fine-tune how their cache behaves, offering powerful and flexible control over evictions, storage and general data life-cycle - all within a compact and memory-efficient infrastructure.
+**Snaplit**is ss Python library providing **mid- to high-level data structures** that leverage an extensive, high-performance **Rust backend**.
 
-## 🧠 Core Philosophy
+The library is designed to **maximize type safety, runtime speed & memory efficiency**, offering Python developers the ability to work with performant data structures without leaving the Python ecosystem.
+Snaplit seamlessly exposes Rust-native structures through Python bindings, allowing users to achieve near-native performance for memory-intensive and computationally demanding operations.
 
-Rust efficiency in a Python package.
-Macho was intentionally constructed for Python developers that desire full control over their caching operations without the overhead of an external server or complex deployment.
+## 📚 Core Philosophy
 
-## ❓ Why use Macho Caching?
+Snaplit is built upon 3 primary guiding principles:
+1. **Rust efficiency in Python** - All core algorithms are implemented in Rust, ensuring predictable memory layout, zero-cost abstractions and low-level safety guarantees.
+2. **Type safety & Reliability** - Rust's strict type system reduces runtime errors, while Python bindings provide a user-friendly interface.
+3. **Performance without compromise** - Snaplit targets both **high-throughput perations** and **memory-constrained environments**, making it suitable for large-scale or high-frequency workloads.
 
-Macho currently aims to fill the gaps between built-in Python caching solutions and full-scale caching servers by offering:
-* ✅ **In-memory speed** without any external server requirements.
-* 🔧 **Full user configuration** over cache behavior and functionality.
-* 🧩 **Modular design** for extensibility and experimentation
-* 🐍 **Pure Python implementation**, great for prototyping or lightweight production services.
+## 💭 Why use Snaplit Data Structure?
 
-## 🛠️ Available Data Structures
+- **Predictable performance**: Algorithms like 'Robin Hood Hashing' or custom tree structures provide near-constant-time lookups and insertions.
+- **Memory efficiency**: Rust's ownership model and precise memory layout minimize overhead compared to native Python implementations.
+- **Pythonic API**: Fully idiomatic Python interface without compromising speed.
+- **Extensibility**: New Rust-based data structures can be exposed to Python without major refactoring.
+
+## 📈 Linear Data Structures
+
+## 🌳 Tree Data Structures
+
+## 📶 Graph Data Structures
+
+## ％ Probability Data Structures
+
+## #️⃣ Hashing Data Structures
 
 ---
 
@@ -48,14 +59,10 @@ A short roadmap of additional advanced data structures to be added in the future
 * **DAG** - Doubly-linked Acyclical Graph structure (similar to Digraph).
 * **Suffix Tree** - Character-based search tree structure.
 
-## 📚 Reading Material
-
-- [Bloom Filter](https://brilliant.org/wiki/bloom-filter/)
-- [Sharding](https://en.wikipedia.org/wiki/Shard_(database_architecture))
-- [Eviction Policy](https://www.geeksforgeeks.org/system-design/cache-eviction-policies-system-design/)
+## 🛣️ Reading Material
 
 ## 🤝 Contribution
 Snaplit is open to contributions from both the Rust & Python communities! If anybody would like to report a bug, request additional features, or possibly contribute code, please feel free to open an issue or submit a pull request via the attached e-mail or Github page.
 
-## 📄 Licensing
+## 📝 Licensing
 Snaplit project is currently licensed under MIT License.
