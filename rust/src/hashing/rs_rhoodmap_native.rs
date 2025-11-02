@@ -38,6 +38,7 @@ impl Hash for Hashable {
 /// Implementation of Robin Bucket structure/class & related operations
 /// ---------------------------------------------------------------------------------
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct RobinBucket {
     key: PyObject,
@@ -93,22 +94,41 @@ impl RhoodMap {
         return (hash_value as usize) % map_capacity;
     }
 
-    fn shift_slots(&mut self, start: usize) -> PyResult<()> {
-        let mut index = start;
-
-        for _ in 0..self.capacity {
-            match &mut self.series[index] {
+    fn shift_slots(&mut self, mut index: usize) -> PyResult<()> {
+        // Loop until internal conditions are met -> Slot::Empty / Slot::Occupied
+        loop {
+            // Match Slot at the current index.
+            match self.series[index].clone() {
+                // If Slot == Empty -> Break from current Loop.
                 Slot::Empty => {
-                    return Ok(());
+                    break;
                 },
-                Slot::Occupied(bucket) => {
-                    self.series[index - 1] = Slot::Occupied(bucket.clone());
+                // If Slot == Occupied -> Check for further condiftions:
+                Slot::Occupied(mut bucket) => {
+                    // If Bucket's distance is 0 (Bucket is at 'Home' square), break from current loop.
+                    if bucket.distance == 0 {
+                        break;
+                    }
+
+                    // Decrement the current Bucket's probe distance by 1 & calculate previous index.
+                    bucket.distance -= 1;
+                    let prev_idx = if index == 0 {
+                        self.capacity - 1
+                    } else {
+                        index - 1
+                    };
+
+                    // Shift the Slots back 1 space & set the current to Empty.
+                    self.series[prev_idx] = Slot::Occupied(bucket);
                     self.series[index] = Slot::Empty;
+
+                    // Increment the index counter by 1 (Cyclical counter).
+                    index = (index + 1) % self.capacity;
                 }
             }
-            index = (index + 1) % self.capacity;
         }
-        return Err(PyValueError::new_err(format!("Error occurred shifting indicies")))
+        // Returns PyResult<Ok> when loop is finished shifting necessary Slots.
+        Ok(())
     }
 }
 
@@ -167,20 +187,27 @@ impl RhoodMap {
         let rust_hash = Self::python_to_rust(py, &key)?;
         let mut index = Self::generate_hash(&self, &rust_hash);
 
+        // Iterate over internal Rust Vectors to check Slots.
         for _ in 0..self.capacity {
+            // Match Slot at current index -> Slot::Empty / Slot::Occupied.
             match &mut self.series[index] {
+                // If current Slot is Empty -> Value could not be found!
                 Slot::Empty => {
                     return Err(PyValueError::new_err(format!("Could not locate key {} in rhoodMap", key)));
                 },
+                // If current Slot is Occupied -> Check if the internal key matches.
+                // If it matches -> Extract and return internal value & shift slots to ensure probe chain.
                 Slot::Occupied(bucket) => {
                     if bucket.key.as_ref(py).eq(key.as_ref(py))? {
-                        let removed_value = bucket;
-                        Self::shift_slots(self, index + 1);
+                        let removed_value = bucket.value.clone_ref(py);
+                        self.series[index] = Slot::Empty;
                         self.map_size -= 1;
-                        return Ok(removed_value.value.clone_ref(py));
+                        self.shift_slots((index + 1) % self.capacity)?;
+                        return Ok(removed_value);
                     }
                 }
             }
+            // Increment current 'Index' by 1 (Cylical counter).
             index = (index + 1) % self.capacity;
         }
         // DEFAULT = Raise an Error if attempted to insert the value too many times without success.
@@ -203,7 +230,7 @@ impl RhoodMap {
                 // If Slot::Occupied -> Return stored value from RobinBucket (Value found!).
                 Slot::Occupied(bucket) => {
                     if bucket.key.as_ref(py).eq(key.as_ref(py))? {
-                        return Ok(bucket.key.clone_ref(py));
+                        return Ok(bucket.value.clone_ref(py));
                     }
                 }
             }
@@ -229,7 +256,7 @@ impl RhoodMap {
                 // If the loop encounters an 'Occupied' slot -> Check if 'Key' matches and then update.
                 Slot::Occupied(bucket) => {
                     if bucket.key.as_ref(py).eq(key.as_ref(py))? {
-                        bucket.value = new_value;
+                        bucket.value = new_value.clone_ref(py);
                         return Ok(true);
                     }
                 }
@@ -259,7 +286,7 @@ impl RhoodMap {
                 }
             }
             // Increment the index value by 1 (Cyclical counter)
-            index = (index - 1) & self.capacity;
+            index = (index - 1) % self.capacity;
         }
     }
 
@@ -394,13 +421,13 @@ impl RhoodMap {
 
     pub fn percentage(&self) -> PyResult<f64> {
         // Calculate the percentage of internal Rust Vector is currently occupied.
-        let precentage = (self.map_size as f64 / self.capacity as f64) / 100.0;
+        let precentage = (self.map_size as f64 / self.capacity as f64) * 100.0;
         Ok(precentage)
     }
 
     pub fn is_empty(&self) -> PyResult<bool> {
         // Returns 'True' if the internal var: 'map_size' is less than or equal to 0. 
-        Ok(self.map_size <= 0)
+        Ok(self.map_size == 0)
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
