@@ -6,6 +6,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use core::hash;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::mem::swap;
 
 /// ---------------------------------------------------------------------------------
 /// Implementation of Enum types & Conversion of Python objects -> Rust data types
@@ -108,9 +109,7 @@ impl RhoodMap {
     }
 
     pub fn insert(&mut self, py: Python, key: PyObject, value: PyObject) -> PyResult<bool> {
-        let mut key = key;
-        let mut value = value;
-
+        // check if the map size is currently above or equal to capacity - Map is full!
         if self.map_size >= self.capacity {
             return Err(PyValueError::new_err(format!("Maximum capacity ({}) reached! Unable to insert key-value", self.capacity)));
         }
@@ -119,26 +118,31 @@ impl RhoodMap {
         let rust_hash = Self::python_to_rust(py, &key)?;
         let mut index = Self::generate_hash(&self, &rust_hash);
 
-        // Generate the new Bucket to insert & Flag.
+        // Generate the new Bucket to insert.
         let mut new_bucket = RobinBucket::new(key.clone_ref(py), value, index);
         
+        // Iterate over internal Vectors starting at 'Index'.
         for _ in 0..self.capacity {
+            // Match current Slot to determine action.
             match &mut self.series[index] {
+                // If Slot::Empty -> Insert new Bucket and increment Map size.
                 Slot::Empty => {
                     self.series[index] = Slot::Occupied(new_bucket);
                     self.map_size += 1;
                     return Ok(true);
                 },
+                // If Slot::Occupied -> If the probe distance is higher, then take the new slot.
                 Slot::Occupied(bucket) => {
-                    if bucket.distance >= new_bucket.distance {
-                        self.series[index] = Slot::Occupied(new_bucket);
-                        self.map_size += 1;
-                        new_bucket = bucket.clone();
+                    if new_bucket.distance >= bucket.distance {
+                        swap(bucket, &mut new_bucket);
                     }
                 }
             }
+            // Increment new bucket's probe distance by 1 & update index counter (Cyclical counter).
+            new_bucket.distance += 1;
             index = (index + 1) % self.capacity;
         }
+        // DEFAULT = Raise an Error if attempted to insert the value too many times without success.
         return Err(PyValueError::new_err(format!("Could not insert key {} into RhoodMap", key)));
     }
 
