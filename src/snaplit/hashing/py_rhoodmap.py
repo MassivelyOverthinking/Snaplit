@@ -176,7 +176,7 @@ class RhoodMap():
         self._inner.clear()
 
     def __len__(self) -> int:
-        self._inner.size()
+        return self._inner.size()
 
     def __bool__(self) -> bool:
         return not self._inner.is_empty()
