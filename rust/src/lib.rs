@@ -40,7 +40,7 @@ use probability::rs_flatlist_native::Flatlist;
 
 // Final export to Python
 #[pymodule]
-pub fn rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn _rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<LinkedList>()?;
     m.add_class::<Stack>()?;
     m.add_class::<ArrayStack>()?;
