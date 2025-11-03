@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![PyPI - 0.1.0](https://img.shields.io/badge/PyPI-coming--soon-yellow)](https://pypi.org/)
+[![PyPI - 0.1.0](https://img.shields.io/badge/PyPI-released-green)](https://pypi.org/)
 
 ---
 
@@ -41,6 +41,14 @@ poetry add snaplit
 
 ## 📈 Linear Data Structures
 
+```python
+# Import statement
+from snaplit.linear import (
+    LinkedList, Stack, ArrayStack, Queue,
+    PriorityQueue, CircularBuffer, RingBuffer
+)
+```
+
 | Structure           | Description                                                                                                              |
 |---------------------|--------------------------------------------------------------------------------------------------------------------------|
 | **Linked List**     | A dynamic, sequential data structure composed of nodes vis pointers, supporting efficient insertion and deletion.        |
@@ -53,6 +61,11 @@ poetry add snaplit
 
 ## 🌳 Tree Data Structures
 
+```python
+# Import statement
+from snaplit.trees import AVLTree, BinarySearchTree, Trie
+```
+
 | Structure              | Description                                                                                                                                     |
 |------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
 | **AVL Tree**           | A self-balancing binary search tree that maintains height balance using rotation operations after insertions and deletions.                     |
@@ -60,6 +73,13 @@ poetry add snaplit
 | **Trie**               | A tree-based data structure that stores strings by their prefixes, enabling efficient retrieval in dictionary and autocomplete applications.    |
 
 ## 📶 Graph Data Structures
+
+```python
+# Import statement
+from snaplit.graph import (
+    BaseGraph, Digraph, WeightedGraph, WeightedDigraph, Hypergraph
+)
+```
 
 | Structure            | Description                                                                                                         |
 |----------------------|---------------------------------------------------------------------------------------------------------------------|
@@ -71,6 +91,11 @@ poetry add snaplit
 
 ## ％ Probability Data Structures
 
+```python
+# Import statement
+from snaplit.probability import BloomFilter, CuckooFilter, Flatlist
+```
+
 | Structure         | Description                                                                                                                                |
 |-------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
 | **Bloom Filter**  | A probabilistic data structure that tests set membership with space efficiency, allowing false positives but no false negatives.           |
@@ -78,6 +103,11 @@ poetry add snaplit
 | **Flatlist**      | A simplified skip list structure that provides sorted storage with efficient search, insertion, and deletion using flattened index layers. 
 
 ## #️⃣ Hashing Data Structures
+
+```python
+# Import statement
+from snaplit.hashing import SnapMap, RhoodMap
+```
 
 | Structures   | Descriptions                                                                                                                               |
 |--------------|--------------------------------------------------------------------------------------------------------------------------------------------|
@@ -88,14 +118,20 @@ poetry add snaplit
 
 ## 🔮 Future Roadmap
 A short roadmap of additional advanced data structures to be added in the future:
-* **XOR-Filter** - Probabilistic data structure for membership checks.
-* **RedBlack-Tree** - Self-balanncing Binary Search Tree structure.
+* **XOR Filter** - Probabilistic data structure for membership checks.
+* **RedBlack Tree** - Self-balanncing Binary Search Tree structure.
 * **B+ Tree** - Self-balancing Binary Search Tree structure.
 * **DAG** - Doubly-linked Acyclical Graph structure (similar to Digraph).
 * **Suffix Tree** - Character-based search tree structure.
+* **Quadratic HashMap** - Ordinary HashMap implementation with Quadratic Probing.
+* **Quadratic HashSet** - Ordinary Set structure with Quadratic Probing. 
 
 ## 🤝 Contribution
-Snaplit is open to contributions from both the Rust & Python communities! If anybody would like to report a bug, request additional features, or possibly contribute code, please feel free to open an issue or submit a pull request via the attached e-mail or Github page.
+Snaplit is open to contributions from both Python and Rust communities!
+
+If you'd like to report a bug, suggest an additional feature or contribute code:
+* Open an **issue** or **pull request** on Github
+* Contact developers directly via the listed e-mail
 
 ## 📝 Licensing
-Snaplit project is currently licensed under MIT License.
+Snaplit project is distributed under the **MIT License** - free for both commercial & personal use.
