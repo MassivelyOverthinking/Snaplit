@@ -27,18 +27,6 @@ Snaplit is built upon 3 primary guiding principles:
 - **Pythonic API**: Fully idiomatic Python interface without compromising speed.
 - **Extensibility**: New Rust-based data structures can be exposed to Python without major refactoring.
 
-## 📈 Linear Data Structures
-
-## 🌳 Tree Data Structures
-
-## 📶 Graph Data Structures
-
-## ％ Probability Data Structures
-
-## #️⃣ Hashing Data Structures
-
----
-
 ## </> Installation
 Utilise any Python-realted package manager to add Snaplit to virtual environment:
 
@@ -51,15 +39,60 @@ conda install snaplit
 poetry add snaplit
 ```
 
+## 📈 Linear Data Structures
+
+| Structure           | Description                                                                                                              |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------|
+| **Linked List**     | A dynamic, sequential data structure composed of nodes vis pointers, supporting efficient insertion and deletion.        |
+| **Stack**           | A linear data structure that operates on the Last-In-First-Out (LIFO) principle.                                         |
+| **Array Stack**     | A stack implementation backed by a fixed-size array, offering constant-time access and updates.                          |
+| **Queue**           | A linear data structure that operates on the First-In-First-Out (FIFO) principle.                                        |
+| **Priority Queue**  | An abstract data type where elements are dequeued based on priority, typically implemented using a min-heap or max-heap. |
+| **Circular Buffer** | A fixed-size buffer that connects its ends, allowing efficient reuse of space for streaming data.                        |
+| **Ring Buffer**     | A type of circular buffer that continuously overwrites the oldest data when full.                                        |
+
+## 🌳 Tree Data Structures
+
+| Structure              | Description                                                                                                                                     |
+|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| **AVL Tree**           | A self-balancing binary search tree that maintains height balance using rotation operations after insertions and deletions.                     |
+| **Binary Search Tree** | A hierarchical data structure where each node has up to two children, with left child keys smaller and right child keys larger than the parent. |
+| **Trie**               | A tree-based data structure that stores strings by their prefixes, enabling efficient retrieval in dictionary and autocomplete applications.    |
+
+## 📶 Graph Data Structures
+
+| Structure            | Description                                                                                                         |
+|----------------------|---------------------------------------------------------------------------------------------------------------------|
+| **Base Graph**       | A fundamental graph structure consisting of vertices connected by unweighted edges, representing general relations. |
+| **Digraph**          | A graph where edges have a defined direction, representing one-way relationships between vertices.                  |
+| **Weighted Graph**   | A graph where edges carry numerical weights, typically representing cost, distance, or capacity between vertices.   |
+| **Weighted Digraph** | A directed graph with weighted edges, modeling asymmetric relationships with associated costs or values.            |
+| **Hypergraph**       | A general graph structure where an edge can connect any number of vertices for modelling complex relationships.     |
+
+## ％ Probability Data Structures
+
+| Structure         | Description                                                                                                                                |
+|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| **Bloom Filter**  | A probabilistic data structure that tests set membership with space efficiency, allowing false positives but no false negatives.           |
+| **Cuckoo Filter** | A probabilistic data structure similar to a Bloom filter but supporting deletions through cuckoo hashing.                                  |
+| **Flatlist**      | A simplified skip list structure that provides sorted storage with efficient search, insertion, and deletion using flattened index layers. 
+
+## #️⃣ Hashing Data Structures
+
+| Structures   | Descriptions                                                                                                                               |
+|--------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| **SnapMap**  | A hash map that resolves collisions using cuckoo hashing, relocating existing keys to alternate buckets to maintain constant-time lookups. |
+| **RhoodMap** | A hash map that minimizes variance in probe sequence lengths by “stealing” slots from entries with shorter probe distances.                |
+
+---
+
 ## 🔮 Future Roadmap
 A short roadmap of additional advanced data structures to be added in the future:
 * **XOR-Filter** - Probabilistic data structure for membership checks.
-* **RedBlacl-Tree** - Self-balanncing Binary Search Tree structure.
+* **RedBlack-Tree** - Self-balanncing Binary Search Tree structure.
 * **B+ Tree** - Self-balancing Binary Search Tree structure.
 * **DAG** - Doubly-linked Acyclical Graph structure (similar to Digraph).
 * **Suffix Tree** - Character-based search tree structure.
-
-## 🛣️ Reading Material
 
 ## 🤝 Contribution
 Snaplit is open to contributions from both the Rust & Python communities! If anybody would like to report a bug, request additional features, or possibly contribute code, please feel free to open an issue or submit a pull request via the attached e-mail or Github page.
