@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit import Stack as _RustStack
+from snaplit._rust_snaplit import Stack as _RustStack
 
 from typing import Any, Optional, List, Iterator
 

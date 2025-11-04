@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit import SnapMap as _RustSnapMap
+from snaplit._rust_snaplit import SnapMap as _RustSnapMap
 
 from typing import Any, Optional, List, Iterable, Iterator
 

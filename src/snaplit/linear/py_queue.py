@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit import Queue as _RustQueue
+from snaplit._rust_snaplit import Queue as _RustQueue
 
 from typing import Any, Optional, List, Iterator
 

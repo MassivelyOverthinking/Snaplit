@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit import BloomFilter as _RustBloomFilter
+from snaplit._rust_snaplit import BloomFilter as _RustBloomFilter
 
 from typing import Any
 

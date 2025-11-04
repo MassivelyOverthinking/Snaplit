@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit import RingBuffer as _RustRingBuffer
+from snaplit._rust_snaplit import RingBuffer as _RustRingBuffer
 
 from typing import Any, Optional, List, Iterable
 

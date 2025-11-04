@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from rust_snaplit import Digraph as _RustDigraph
+from snaplit._rust_snaplit import Digraph as _RustDigraph
 
 from typing import Any, List, Tuple, Optional, Union
 
