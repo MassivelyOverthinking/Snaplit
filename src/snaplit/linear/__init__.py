@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from .linked_list import LinkedList
+from .py_linked_list import LinkedList
 from .py_arraystack import ArrayStack
 from .py_stack import Stack
 from .py_queue import Queue

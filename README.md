@@ -8,7 +8,7 @@
 
 ## ❓ What is Snaplit?
 
-**Snaplit**is ss Python library providing **mid- to high-level data structures** that leverage an extensive, high-performance **Rust backend**.
+**Snaplit** is a Python library providing **mid- to high-level data structures** that leverage an extensive, high-performance **Rust backend**.
 
 The library is designed to **maximize type safety, runtime speed & memory efficiency**, offering Python developers the ability to work with performant data structures without leaving the Python ecosystem.
 Snaplit seamlessly exposes Rust-native structures through Python bindings, allowing users to achieve near-native performance for memory-intensive and computationally demanding operations.
@@ -28,7 +28,7 @@ Snaplit is built upon 3 primary guiding principles:
 - **Extensibility**: New Rust-based data structures can be exposed to Python without major refactoring.
 
 ## </> Installation
-Utilise any Python-realted package manager to add Snaplit to virtual environment:
+Utilise any Python-related package manager to add Snaplit to virtual environment:
 
 ```python
 # Pip 
@@ -117,12 +117,15 @@ from snaplit.hashing import SnapMap, RhoodMap
 ---
 
 ## 🔮 Future Roadmap
-A short roadmap of additional advanced data structures to be added in the future:
+A short roadmap of additional advanced data structures to be added in the future.
+* **Perfect LinkedList** - A Doubly-Linked Circular List structure. 
 * **XOR Filter** - Probabilistic data structure for membership checks.
-* **RedBlack Tree** - Self-balanncing Binary Search Tree structure.
+* **HyperLogLog (HLL)** - Probabilistic data structure for estimating unique values.
+* **Red-Black Tree** - Self-balanncing Binary Search Tree structure.
 * **B+ Tree** - Self-balancing Binary Search Tree structure.
 * **DAG** - Doubly-linked Acyclical Graph structure (similar to Digraph).
 * **Suffix Tree** - Character-based search tree structure.
+* **Adjacency Array** - Linked List strucutre utilising array-based backend. 
 * **Quadratic HashMap** - Ordinary HashMap implementation with Quadratic Probing.
 * **Quadratic HashSet** - Ordinary Set structure with Quadratic Probing. 
 
