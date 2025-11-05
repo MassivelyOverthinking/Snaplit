@@ -16,8 +16,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Software Development :: Libraries",
-    "Topic :: Software Development :: Libraries :: Python modules",
-    "Topic :: Software Development :: Libraries :: Data Structures",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 keywords = [
     "rust",
