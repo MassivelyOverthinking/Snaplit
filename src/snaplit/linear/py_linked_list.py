@@ -2,7 +2,7 @@
 
 from snaplit._rust_snaplit import LinkedList as _RustLinkedList
 
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Iterator
 
 #---------- Linked List Shim ----------
 
@@ -122,21 +122,33 @@ class LinkedList():
     def to_list(self) -> List[Any]:
         return list(self._inner.to_list())
     
+    def size(self) -> int:
+        return self._inner.size()
+    
+    def is_empty(self) -> bool:
+        return self._inner.is_empty()
+    
     def clear(self) -> None:
         self._inner.clear()
 
     def __len__(self) -> int:
-        return self._inner.__len__()
+        return self._inner.size()
     
-    def __getitem__(self, index: int) -> Any:
-        return self._inner.__getitem__(index)
-    
-    def __setitem__(self, index: int, value: Any) -> None:
-        self._inner.__setitem__(value, index)
-
-    def __delitem__(self, index: int) -> None:
-        self._inner.__delitem__(index)
+    def __bool__(self) -> bool:
+        return not self._inner.is_empty()
     
     def __contains__(self, value: Any) -> bool:
-        return self._inner.__contains__(value)
+        return self._inner.contains(value)
+    
+    def __getitem__(self, index: int) -> Any:
+        return self._inner.get(index)
+    
+    def __setitem__(self, value: Any, index: int) -> None:
+        self._inner.update(value, index)
+
+    def __delitem__(self, index: int) -> None:
+        self._inner.remove(index)
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self._inner.to_list())
     
