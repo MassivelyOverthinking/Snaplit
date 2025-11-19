@@ -13,6 +13,7 @@ use std::hash::{Hash, Hasher};
 #[derive(Debug, Clone)]
 enum Slot {
     Empty,
+    Tombstone,
     Occupied((PyObject, PyObject)),
 }
 
@@ -74,7 +75,7 @@ impl QuadMap {
 #[pymethods]
 impl QuadMap {
     #[new]
-    pub fn new(py: Python, capacity: Option<usize>) -> Self {
+    pub fn new(capacity: Option<usize>) -> Self {
         let qm_cap = capacity.unwrap_or(1024);
         Self {
             capacity: qm_cap,
@@ -104,6 +105,12 @@ impl QuadMap {
                     self.map_size+= 1;
                     return Ok(true)
                 },
+                // If Slot::Tombstone -> Insert key-value tuple & increment map_size.
+                Slot::Tombstone => {
+                    self.series[index] = Slot::Occupied((key.clone_ref(py), value.clone_ref(py)));
+                    self.map_size+= 1;
+                    return Ok(true)
+                },
                 // If Slot::Occupied -> Continue to next loop iteration (Begin Probe Chain).
                 Slot::Occupied(_) => {
                     index = (index + quad_idx*quad_idx) & cap;
@@ -125,6 +132,10 @@ impl QuadMap {
                 // If Slot::Occupied -> Push the '0' value from Tuple to list.
                 Slot::Occupied(tuple) => {
                     elements.push(&tuple.0);
+                },
+                // If Slot::Tombstone -> Continue to next iteration of the loop.
+                Slot::Tombstone => {
+                    continue;
                 },
                 // If Slot::Empty -> Continue to next iteration of the loop.
                 Slot::Empty => {
@@ -148,6 +159,10 @@ impl QuadMap {
                 Slot::Occupied(tuple) => {
                     elements.push(&tuple.1);
                 },
+                // If Slot::Tombstone -> Continue to next iteration of the loop.
+                Slot::Tombstone => {
+                    continue;
+                },
                 // If Slot::Empty -> Continue to next iteration of the loop.
                 Slot::Empty => {
                     continue;
@@ -169,6 +184,10 @@ impl QuadMap {
                 // If Slot::Occupied -> Push both (0, 1) value from Tuple to list.
                 Slot::Occupied(tuple) => {
                     elements.push((&tuple.0, &tuple.1));
+                },
+                // If Slot::Tombstone -> Continue to next iteration of the loop.
+                Slot::Tombstone => {
+                    continue;
                 },
                 // If Slot::Empty -> Continue to next iteration of the loop.
                 Slot::Empty => {
