@@ -112,8 +112,13 @@ impl QuadMap {
                     return Ok(true)
                 },
                 // If Slot::Occupied -> Continue to next loop iteration (Begin Probe Chain).
-                Slot::Occupied(_) => {
-                    index = (index + quad_idx*quad_idx) & cap;
+                Slot::Occupied(tuple) => {
+                    if tuple.0.as_ref(py).eq(key.as_ref(py))? {
+                        tuple.1 = value;
+                        return Ok(false)
+                    } else {
+                        index = (index + quad_idx*quad_idx) % cap;
+                    }
                 },
             }
         }
