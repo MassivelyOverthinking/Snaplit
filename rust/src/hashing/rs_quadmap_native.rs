@@ -113,4 +113,32 @@ impl QuadMap {
         // DEFAULT = Return a PyValueEror if the value was nuable to be inserted.
         return Err(PyValueError::new_err(format!("Could not insert key {} into QuadMap", key)));
     }
+
+    pub fn capacity(&self) -> PyResult<usize> {
+        // Return the total entry capacity of the QuadMap.
+        Ok(self.capacity)
+    }
+
+    pub fn size(&self) -> PyResult<usize> {
+        // Return the current entry number of the QuadMap.
+        Ok(self.map_size)
+    }
+
+    pub fn percentage(&self) -> PyResult<f64> {
+        // Return the percent of the internal Series array that is currently occupied.
+        let percent = (self.map_size as f64 / self.capacity as f64) * 100.0;
+        Ok(percent)
+    }
+
+    pub fn is_empty(&self) -> PyResult<bool> {
+        // Check if the internal Series-array contains no current entries. 
+        Ok(self.map_size <= 0)
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        // Set internal values in Series-array to Slot::Empty & reset variable 'map_size' to 0.
+        self.map_size = 0;
+        self.series = vec![Slot::Empty; self.capacity];
+        Ok(())
+    }
 }
