@@ -158,6 +158,49 @@ impl QuadMap {
         Ok(PyList::new(py, elements))
     }
 
+    pub fn items<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initialize a temporery vector array to store key-value pairs in.
+        let mut elements = Vec::new();
+
+        // Iterate through internal Series-array & append key-value pairs to 'elements' vector.
+        for slot in self.series.iter() {
+            // Match Slot Enum type.
+            match slot {
+                // If Slot::Occupied -> Push both (0, 1) value from Tuple to list.
+                Slot::Occupied(tuple) => {
+                    elements.push((&tuple.0, &tuple.1));
+                },
+                // If Slot::Empty -> Continue to next iteration of the loop.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert the 'Elements' Vector to a Python native list structure.
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        // Extract teh necessary metrcis from internal variables & methods
+        let percentage = self.percentage()?;
+        let keys = self.keys(py)?.into();
+        let values = self.values(py)?.into();
+
+        // Construct a Rust Vector consisting of indvidual Tuples (String, PyObject).
+        let key_vals: Vec<(&str, PyObject)> = vec![
+            ("type", "QuadMap".to_object(py)),
+            ("capacity", self.capacity.to_object(py)),
+            ("size", self.map_size.to_object(py)),
+            ("percentage", percentage.to_object(py)),
+            ("keys", keys),
+            ("values", values)
+        ];
+
+        // Convert Vector to Python Dictionary and return value.
+        let py_dict = key_vals.into_py_dict(py);
+        Ok(py_dict)
+    }
+
     pub fn capacity(&self) -> PyResult<usize> {
         // Return the total entry capacity of the QuadMap.
         Ok(self.capacity)
