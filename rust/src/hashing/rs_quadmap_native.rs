@@ -114,6 +114,50 @@ impl QuadMap {
         return Err(PyValueError::new_err(format!("Could not insert key {} into QuadMap", key)));
     }
 
+    pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initialize a temporery vector array to store key-values in.
+        let mut elements = Vec::new();
+
+        // Iterate through internal Series-array & append keys to 'elements' vector.
+        for slot in self.series.iter() {
+            // Match Slot Enum type.
+            match slot {
+                // If Slot::Occupied -> Push the '0' value from Tuple to list.
+                Slot::Occupied(tuple) => {
+                    elements.push(&tuple.0);
+                },
+                // If Slot::Empty -> Continue to next iteration of the loop.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert the 'Elements' Vector to a Python native list structure.
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initialize a temporery vector array to store values in.
+        let mut elements = Vec::new();
+
+        // Iterate through internal Series-array & append values to 'elements' vector.
+        for slot in self.series.iter() {
+            // Match Slot Enum type.
+            match slot {
+                // If Slot::Occupied -> Push the '1' value from Tuple to list.
+                Slot::Occupied(tuple) => {
+                    elements.push(&tuple.1);
+                },
+                // If Slot::Empty -> Continue to next iteration of the loop.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert the 'Elements' Vector to a Python native list structure.
+        Ok(PyList::new(py, elements))
+    }
+
     pub fn capacity(&self) -> PyResult<usize> {
         // Return the total entry capacity of the QuadMap.
         Ok(self.capacity)
