@@ -62,7 +62,7 @@ impl QuadMap {
     }
 
     fn generate_hash<T: Hash>(&self, key: &T) -> usize {
-        // Generates the intial Hash index for Robin Hood insertion
+        // Generates the intial Hash index for Vector insertion
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
         let hash_value = hasher.finish();

@@ -33,6 +33,7 @@ use graph::rs_hypergraph_native::HyperGraph;
 use hashing::rs_snapmap_native::SnapMap;
 use hashing::rs_rhoodmap_native::RhoodMap;
 use hashing::rs_quadmap_native::QuadMap;
+use hashing::rs_quadset_native::QuadSet;
 
 // imports from rust folders (Probability)
 use probability::rs_bloom_filter_native::BloomFilter;
@@ -55,6 +56,7 @@ pub fn _rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SnapMap>()?;
     m.add_class::<RhoodMap>()?;
     m.add_class::<QuadMap>()?;
+    m.add_class::<QuadSet>()?;
     m.add_class::<BloomFilter>()?;
     m.add_class::<CuckooFilter>()?;
     m.add_class::<Flatlist>()?;
