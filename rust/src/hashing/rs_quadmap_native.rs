@@ -126,6 +126,43 @@ impl QuadMap {
         return Err(PyValueError::new_err(format!("Could not insert key {} into QuadMap", key)));
     }
 
+    pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Convert key Rust data-type & produce hash-value for indexing.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let mut index = Self::generate_hash(&self, &rust_hash);
+
+        // Iterate through intern Series array.
+        for quad_idx in 1..self.capacity {
+            // Match internal Slots.
+            match &self.series[index] {
+                // If Slot::Occupied -> Check to see if the correct key is present.
+                Slot::Occupied(tuple) => {
+                    if tuple.0.as_ref(py).eq(key.as_ref(py))? {
+                        let result = tuple.0.clone_ref(py);
+                        return Ok(result)
+                    } else {
+                        index = (index + quad_idx*quad_idx) % self.capacity;
+                    }
+                },
+                // If Slot::Tombstone -> Continnue Quadratic Probe Chain.
+                Slot::Tombstone => {
+                    index = (index + quad_idx*quad_idx) % self.capacity;
+                },
+                // If Slot::Empty -> Value is not found. Return 'None'.
+                Slot::Empty => {
+                    return Ok(py.None());
+                }
+            }
+        }
+        // DEFAULT = Return None if the value was not found (Iterated over entire Map).
+        return Ok(py.None())
+    }
+
+    pub fn from_keys<'py>(&self, py: Python<'py>, iterable: &PyAny) -> PyResult<&'py PyList> {
+        // Initiate new Rust Vectors to store value.
+        let mut elements = Vec::new();
+    }
+
     pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         // Initialize a temporery vector array to store key-values in.
         let mut elements = Vec::new();
