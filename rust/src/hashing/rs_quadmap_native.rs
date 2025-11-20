@@ -158,9 +158,55 @@ impl QuadMap {
         return Ok(py.None())
     }
 
+    pub fn contains(&self, py: Python, key: PyObject) -> PyResult<bool> {
+        // Convert key Rust data-type & produce hash-value for indexing.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let mut index = Self::generate_hash(&self, &rust_hash);
+
+        // Utilise loop structure to check internal Series-array for specified key-value.
+        for quad_idx in 1..self.capacity {
+            // Match internal Slots.
+            match &self.series[index] {
+                // If Slot::Occupied -> Check to see if the correct key is present.
+                Slot::Occupied(tuple) => {
+                    if tuple.0.as_ref(py).eq(key.as_ref(py))? {
+                        return Ok(true);
+                    } else {
+                        index = (index + quad_idx*quad_idx) % self.capacity;
+                    }
+                },
+                // If Slot::Tombstone -> Continue Quadratic Probe Chain.
+                Slot::Tombstone => {
+                    index = (index + quad_idx*quad_idx) % self.capacity;
+                },
+                // If Slot::Empty -> Value is not found. Return 'False'.
+                Slot::Empty => {
+                    return Ok(false);
+                }
+            }
+        }
+        // DEFAULT = If iterated over the entire Series-array return 'False'.
+        Ok(false)
+    }
+
     pub fn from_keys<'py>(&self, py: Python<'py>, iterable: &PyAny) -> PyResult<&'py PyList> {
         // Initiate new Rust Vectors to store value.
         let mut elements = Vec::new();
+
+        // Iterate over all keys elements in 'iterable' parameter.
+        for key_object in iterable.iter()? {
+            // Extract the key-value from behind Result-type.
+            let key = key_object?;
+            // Utilise internal .get() method to retrieve values.
+            let value = self.get(py, key.to_object(py))?;
+
+            // Check if the retrieved value is 'None' before adding to elements list.
+            if !value.is_none(py) {
+                elements.push(value);
+            }
+        }
+        // Create a final PyList-object and return to user.
+        Ok(PyList::new(py, &elements))
     }
 
     pub fn keys<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
