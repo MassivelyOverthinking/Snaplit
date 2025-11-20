@@ -2,7 +2,6 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyTuple};
 use pyo3::PyObject;
-use rustc_hash::{FxHashMap, FxHasher};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -125,6 +124,44 @@ impl QuadMap {
         }
         // DEFAULT = Return a PyValueEror if the value was nuable to be inserted.
         return Err(PyValueError::new_err(format!("Could not insert key {} into QuadMap", key)));
+    }
+
+    pub fn remove(&mut self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Get maximum capacity number to utilise. 
+        let cap = self.capacity;
+
+        // Convert key Rust data-type & produce hash-value for indexing.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let hash = Self::generate_hash(&self, &rust_hash);
+
+        // Iterate over the internal Series array -> Probe Chaining
+        for quad_idx in 0..cap {
+            // Calculate the index for loop. 
+            let index = (hash + quad_idx * quad_idx) % cap;
+            // Match the Slot at specified index in internal Series array.
+            match &mut self.series[index] {
+                // If Slot::Tombstone -> Continue to next loop iteration.
+                Slot::Tombstone => {
+                    continue;
+                },
+                // If Slot::Empty -> Raise ValueError (No entry with key-value found!).
+                Slot::Empty => {
+                    return Err(PyValueError::new_err(format!("Could not locate key {} in QuadMap", key)));
+                },
+                // If Slot::Occupied -> Remove & return value.
+                // Set the Slot at the removed value index to Slot::Tombstone. 
+                Slot::Occupied(tuple) => {
+                    if tuple.0.as_ref(py).eq(key.as_ref(py))? {
+                        let removed_value = tuple.1.clone_ref(py);
+                        self.series[index] = Slot::Tombstone;
+                        self.map_size -= 1;
+                        return Ok(removed_value);
+                    }
+                }
+            }
+        }
+        // Default = Raise ValueError (No entry with key-value found!)
+        return Err(PyValueError::new_err(format!("Could not locate key {} in QuadMap", key)));
     }
 
     pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
@@ -331,6 +368,24 @@ impl QuadMap {
         }
         // Convert the 'Elements' Vector to a Python native list structure.
         Ok(PyList::new(py, elements))
+    }
+
+    pub fn copy(&self, py: Python<'_>) -> PyResult<PyObject> {
+        // Initiate a new, empty QuadMap-class.
+        let mut new_map = QuadMap::new(Some(self.capacity));
+
+        // Iterate through all stored items.
+        for tuple in self.items(py)?.iter() {
+            // Downcast entry to PyTuple to extract key & value pairs safely.
+            let tup = tuple.downcast::<PyTuple>()?;
+            let key = tup.get_item(0)?;
+            let val = tup.get_item(1)?;
+
+            // Convert &PyAny -> PyObject to safely add to new QuadMap instance.
+            new_map.insert(py, key.to_object(py), val.to_object(py))?;
+        }
+        // Convert the new, fully loaded QuadMap to a PyObject. 
+        Ok(Py::new(py, new_map)?.into_py(py))
     }
 
     pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
