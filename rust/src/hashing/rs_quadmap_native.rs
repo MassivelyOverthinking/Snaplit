@@ -93,10 +93,13 @@ impl QuadMap {
 
         // Convert key-value Rust data-type & produce hash-value for indexing.
         let rust_hash = Self::python_to_rust(py, &key)?;
-        let mut index = Self::generate_hash(&self, &rust_hash); 
+        let hash = Self::generate_hash(&self, &rust_hash); 
 
         // Iterate over the internal Series array -> Probe Chaining
-        for quad_idx in 1..cap {
+        for quad_idx in 0..cap {
+
+            // Calculate the index for loop. 
+            let index = (hash + quad_idx * quad_idx) % cap;
             // Match the Slot at specified index in internal Series array.
             match &mut self.series[index] {
                 // If Slot::Empty -> Insert key-value tuple & increment map_size.
@@ -108,7 +111,7 @@ impl QuadMap {
                 // If Slot::Tombstone -> Insert key-value tuple & increment map_size.
                 Slot::Tombstone => {
                     self.series[index] = Slot::Occupied((key.clone_ref(py), value.clone_ref(py)));
-                    self.map_size+= 1;
+                    self.map_size += 1;
                     return Ok(true)
                 },
                 // If Slot::Occupied -> Continue to next loop iteration (Begin Probe Chain).
@@ -116,8 +119,6 @@ impl QuadMap {
                     if tuple.0.as_ref(py).eq(key.as_ref(py))? {
                         tuple.1 = value;
                         return Ok(false)
-                    } else {
-                        index = (index + quad_idx*quad_idx) % cap;
                     }
                 },
             }
@@ -126,27 +127,68 @@ impl QuadMap {
         return Err(PyValueError::new_err(format!("Could not insert key {} into QuadMap", key)));
     }
 
-    pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
+    pub fn update(&mut self, py: Python, key: PyObject, new_value: PyObject) -> PyResult<bool> {
+        // Get maximum capacity number to utilise. 
+        let cap = self.capacity;
+
         // Convert key Rust data-type & produce hash-value for indexing.
         let rust_hash = Self::python_to_rust(py, &key)?;
-        let mut index = Self::generate_hash(&self, &rust_hash);
+        let hash = Self::generate_hash(&self, &rust_hash);
+
+        // Iterate over entire Series-array starting from 'Index'.
+        for quad_idx in 0..cap {
+
+            // Calculate the index for loop. 
+            let index = (hash + quad_idx * quad_idx) % cap;
+            // Match internal Slots.
+            match &mut self.series[index] {
+                // If Slot::Occupied -> Check to see if the correct key is present.
+                // If correct -> Update the value variable & return 'True'.
+                Slot::Occupied(tuple) => {
+                    if tuple.0.as_ref(py).eq(key.as_ref(py))? {
+                        tuple.1 = new_value;
+                        return Ok(true)
+                    }
+                },
+                // If Slot::Tombstone -> Continue Quadratic Probing.
+                Slot::Tombstone => {
+                    continue;
+                },
+                // If Slot::Empty -> Value is not found. Return 'False'.
+                Slot::Empty => {
+                    return Ok(false);
+                }
+            }
+        }
+        // DEFAULT = Iterated over entire Series-array & key-value is not found.
+        Ok(false)
+    }
+
+    pub fn get(&self, py: Python, key: PyObject) -> PyResult<PyObject> {
+        // Get maximum capacity number to utilise.
+        let cap = self.capacity;
+
+        // Convert key Rust data-type & produce hash-value for indexing.
+        let rust_hash = Self::python_to_rust(py, &key)?;
+        let hash = Self::generate_hash(&self, &rust_hash);
 
         // Iterate through intern Series array.
-        for quad_idx in 1..self.capacity {
+        for quad_idx in 0..cap {
+
+            // Calculate the index for loop. 
+            let index = (hash + quad_idx * quad_idx) % cap;
             // Match internal Slots.
             match &self.series[index] {
                 // If Slot::Occupied -> Check to see if the correct key is present.
                 Slot::Occupied(tuple) => {
                     if tuple.0.as_ref(py).eq(key.as_ref(py))? {
-                        let result = tuple.0.clone_ref(py);
+                        let result = tuple.1.clone_ref(py);
                         return Ok(result)
-                    } else {
-                        index = (index + quad_idx*quad_idx) % self.capacity;
                     }
                 },
                 // If Slot::Tombstone -> Continnue Quadratic Probe Chain.
                 Slot::Tombstone => {
-                    index = (index + quad_idx*quad_idx) % self.capacity;
+                    continue;
                 },
                 // If Slot::Empty -> Value is not found. Return 'None'.
                 Slot::Empty => {
@@ -159,25 +201,29 @@ impl QuadMap {
     }
 
     pub fn contains(&self, py: Python, key: PyObject) -> PyResult<bool> {
+        // Get maximum capacity number to utilise.
+        let cap = self.capacity;
+
         // Convert key Rust data-type & produce hash-value for indexing.
         let rust_hash = Self::python_to_rust(py, &key)?;
-        let mut index = Self::generate_hash(&self, &rust_hash);
+        let hash = Self::generate_hash(&self, &rust_hash);
 
         // Utilise loop structure to check internal Series-array for specified key-value.
-        for quad_idx in 1..self.capacity {
+        for quad_idx in 0..cap {
+
+            // Calculate the index for loop. 
+            let index = (hash + quad_idx * quad_idx) % cap;
             // Match internal Slots.
             match &self.series[index] {
                 // If Slot::Occupied -> Check to see if the correct key is present.
                 Slot::Occupied(tuple) => {
                     if tuple.0.as_ref(py).eq(key.as_ref(py))? {
                         return Ok(true);
-                    } else {
-                        index = (index + quad_idx*quad_idx) % self.capacity;
                     }
                 },
                 // If Slot::Tombstone -> Continue Quadratic Probe Chain.
                 Slot::Tombstone => {
-                    index = (index + quad_idx*quad_idx) % self.capacity;
+                    continue;
                 },
                 // If Slot::Empty -> Value is not found. Return 'False'.
                 Slot::Empty => {
