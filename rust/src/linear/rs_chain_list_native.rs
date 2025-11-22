@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyObject;
@@ -31,7 +33,14 @@ pub struct ChainList {
     head: usize,
     tail: usize,
     list_array: Vec<Slot>,
-    free_list: Vec<usize>,
+    free_list: VecDeque<usize>,
+}
+
+impl ChainList {
+    fn is_full(&self) -> bool {
+        // Internal helper-method to determine if the current ChainList is at capacity.
+        self.list_size >= self.capacity
+    }
 }
 
 #[pymethods]
@@ -45,7 +54,22 @@ impl ChainList {
             head: 0,
             tail: 0,
             list_array: vec![Slot::Empty; cap],
-            free_list: Vec::new(),
+            free_list: VecDeque::new(),
+        }
+    }
+
+    pub fn insert(&mut self, py: Python, value: PyObject, index: Option<usize>) -> PyResult<bool> {
+        // Insert Python data into the ChainList at specified index.
+        if self.is_full() {
+            return Err(PyValueError::new_err(format!("ChainList at maximum capacity {}! Value {} not inserted", self.capacity, value)));
+        }
+
+        // Retrieve the self.head index.
+        let mut head_idx = self.head - 1;
+
+        // Check if an unused Slot exists in free_list -> If True, use that Slot instead.
+        if !self.free_list.is_empty() {
+            head_idx = self.free_list.pop_back();
         }
     }
 
@@ -65,12 +89,18 @@ impl ChainList {
         Ok(percent)
     }
 
+    pub fn is_empty(&self) -> PyResult<bool> {
+        // Check whether the current ChainList array is currenly empty.
+        Ok(self.list_size <= 0)
+    }
+
     pub fn clear(&mut self) -> PyResult<()> {
         // Clear all internal class variables -> Resetting the entire data structure.
         self.list_size = 0;
         self.head = 0;
         self.tail = 0;
         self.list_array = vec![Slot::Empty; self.capacity];
+        self.free_list = Vec::new();
         Ok(())
     }
 }
