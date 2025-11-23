@@ -19,15 +19,17 @@ enum Slot {
 struct ChainLink {
     data: PyObject,
     next: usize,
-    previous: usize
+    previous: usize,
+    index: usize,
 }
 
 impl ChainLink {
-    fn new(data: PyObject, next: usize, previous: usize) -> Self {
+    fn new(data: PyObject, next: usize, previous: usize, index: usize) -> Self {
         Self {
             data: data,
             next: next,
             previous: previous,
+            index: index,
         }
     }
 }
@@ -80,15 +82,16 @@ impl ChainList {
         let next_index: usize = self.head;
         let previous_index: usize = self.tail;
 
-        // Create new ChainLink-class
-        let chain_value = ChainLink::new(
-            value,
-            next_index,
-            previous_index
-        );
-
         // Check is there is currently a free Slot available in free_list.
         if let Some(free_index) = self.free_list.pop_back() {
+            // Create new ChainLink-class
+            let chain_value = ChainLink::new(
+                value,
+                next_index,
+                previous_index,
+                free_index,
+            );
+
             self.list_array[free_index] = Slot::Occupied(chain_value);
             self.list_size += 1;
             self.head = free_index;
@@ -96,6 +99,15 @@ impl ChainList {
         } else {
             // If no free Slot -> Simply add at next available array index.
             let new_idx = self.next_index;
+
+            // Create new ChainLink-class
+            let chain_value = ChainLink::new(
+                value,
+                next_index,
+                previous_index,
+                new_idx
+            );
+
             self.list_array[new_idx] = Slot::Occupied(chain_value);
             self.next_index += 1;
             self.list_size += 1;
@@ -114,15 +126,17 @@ impl ChainList {
         let next_index: usize = self.tail;
         let previous_index: usize = self.head;
 
-        // Create new ChainLink-class
-        let chain_value = ChainLink::new(
-            value,
-            next_index,
-            previous_index
-        );
-
         // Check is there is currently a free Slot available in free_list.
         if let Some(free_index) = self.free_list.pop_back() {
+
+            // Create new ChainLink-class
+            let chain_value = ChainLink::new(
+                value,
+                next_index,
+                previous_index,
+                free_index,
+            );
+
             self.list_array[free_index] = Slot::Occupied(chain_value);
             self.list_size += 1;
             self.tail = free_index;
@@ -130,6 +144,15 @@ impl ChainList {
         } else {
             // If no free Slot -> Simply add at next available array index.
             let new_idx = self.next_index;
+
+            // Create new ChainLink-class
+            let chain_value = ChainLink::new(
+                value,
+                next_index,
+                previous_index,
+                new_idx,
+            );
+
             self.list_array[new_idx] = Slot::Occupied(chain_value);
             self.next_index += 1;
             self.list_size += 1;
@@ -140,7 +163,7 @@ impl ChainList {
 
     pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
         // Iterate over internal list_array to determine if specified value is present.
-        for index in 0..self.next_index {
+        for index in 0..=self.next_index {
             // Utilise Match stmt to retrieve internal instances.
             match &self.list_array[index] {
                 // If Slot::Occupied -> Check value & return if it matches!
@@ -157,6 +180,28 @@ impl ChainList {
         }
         // DEFAULT = Entire list array has been checked & no correct value was found. 
         Ok(false)
+    }
+
+    pub fn search(&self, py: Python, value: PyObject) -> PyResult<Option<usize>> {
+        // Iterate over internal list_array to determine if specified value is present.
+        for index in 0..=self.next_index {
+            // Utilise Match stmt to retrieve internal instances.
+            match &self.list_array[index] {
+                // If Slot::Occupied -> Check value & return link-index if it matches!
+                Slot::Occupied(link) => {
+                    if link.data.as_ref(py).eq(value.as_ref(py))? {
+                        return Ok(Some(link.index));
+                    }
+                },
+                // If Slot::Empty -> Continue to next loope iteration.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // DEFAULT = Entire list array has been checked & no correct value was found.
+        // Return 'None'. 
+        Ok(None)
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
