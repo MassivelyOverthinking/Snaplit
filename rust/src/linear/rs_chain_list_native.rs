@@ -97,8 +97,43 @@ impl ChainList {
             // If no free Slot -> Simply add at next available array index.
             let new_idx = self.next_index;
             self.list_array[new_idx] = Slot::Occupied(chain_value);
+            self.next_index += 1;
             self.list_size += 1;
             self.head = new_idx;
+            return Ok(true);
+        }
+    }
+
+    pub fn append(&mut self, value: PyObject) -> PyResult<bool> {
+        // Check if the internal ChainList array is full -> Raise Error if True.
+        if self.is_full() {
+            return Err(PyValueError::new_err(format!("ChainList at maximum capacity: {}! Unable to add value.", self.capacity)));
+        }
+
+        // Take the necessary values to create new ChainLink instance.
+        let next_index: usize = self.tail;
+        let previous_index: usize = self.head;
+
+        // Create new ChainLink-class
+        let chain_value = ChainLink::new(
+            value,
+            next_index,
+            previous_index
+        );
+
+        // Check is there is currently a free Slot available in free_list.
+        if let Some(free_index) = self.free_list.pop_back() {
+            self.list_array[free_index] = Slot::Occupied(chain_value);
+            self.list_size += 1;
+            self.tail = free_index;
+            return Ok(true);
+        } else {
+            // If no free Slot -> Simply add at next available array index.
+            let new_idx = self.next_index;
+            self.list_array[new_idx] = Slot::Occupied(chain_value);
+            self.next_index += 1;
+            self.list_size += 1;
+            self.tail = new_idx;
             return Ok(true);
         }
     }
