@@ -22,6 +22,16 @@ struct ChainLink {
     previous: usize
 }
 
+impl ChainLink {
+    fn new(data: PyObject, next: usize, previous: usize) -> Self {
+        Self {
+            data: data,
+            next: next,
+            previous: previous,
+        }
+    }
+}
+
 /// ---------------------------------------------------------------------------------
 /// Implementation of main ChainList-class -> Array-based Linked List 
 /// ---------------------------------------------------------------------------------
@@ -32,6 +42,7 @@ pub struct ChainList {
     list_size: usize,
     head: usize,
     tail: usize,
+    next_index: usize,
     list_array: Vec<Slot>,
     free_list: VecDeque<usize>,
 }
@@ -53,24 +64,40 @@ impl ChainList {
             list_size: 0,
             head: 0,
             tail: 0,
+            next_index: 0,
             list_array: vec![Slot::Empty; cap],
             free_list: VecDeque::new(),
         }
     }
 
-    pub fn insert(&mut self, py: Python, value: PyObject, index: Option<usize>) -> PyResult<bool> {
-        // Insert Python data into the ChainList at specified index.
+    pub fn prepend(&mut self, py: Python, value: PyObject) -> PyResult<bool> {
+        // Check if the internal ChainList array is full -> Raise Error if True.
         if self.is_full() {
-            return Err(PyValueError::new_err(format!("ChainList at maximum capacity {}! Value {} not inserted", self.capacity, value)));
+            return Err(PyValueError::new_err(format!("ChainList at maximum capacity: {}! Unable to add value.", self.capacity)));
         }
 
-        // Retrieve the self.head index.
-        let mut head_idx = self.head - 1;
+        let mut next_index: usize = 0;
+        let mut previous_index: usize = 0;
 
-        // Check if an unused Slot exists in free_list -> If True, use that Slot instead.
-        if !self.free_list.is_empty() {
-            head_idx = self.free_list.pop_back();
+        let chain_value = ChainLink::new(
+            value,
+            next_index,
+            previous_index
+        );
+
+        if let Some(free_index) = self.free_list.pop_back() {
+            self.list_array[free_index] = Slot::Occupied(chain_value);
+            self.list_size += 1;
+            self.head = free_index;
+            Ok(true)
+        } else {
+            let new_idx = self.next_index;
+            self.list_array[new_idx] = Slot::Occupied(chain_value);
+            self.list_size += 1;
+            self.head = new_idx;
+            Ok(true)
         }
+
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
@@ -99,8 +126,9 @@ impl ChainList {
         self.list_size = 0;
         self.head = 0;
         self.tail = 0;
+        self.next_index = 0;
         self.list_array = vec![Slot::Empty; self.capacity];
-        self.free_list = Vec::new();
+        self.free_list = VecDeque::new();
         Ok(())
     }
 }
