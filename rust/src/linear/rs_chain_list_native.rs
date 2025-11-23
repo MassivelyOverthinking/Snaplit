@@ -138,6 +138,27 @@ impl ChainList {
         }
     }
 
+    pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
+        // Iterate over internal list_array to determine if specified value is present.
+        for index in 0..self.next_index {
+            // Utilise Match stmt to retrieve internal instances.
+            match &self.list_array[index] {
+                // If Slot::Occupied -> Check value & return if it matches!
+                Slot::Occupied(link) => {
+                    if link.data.as_ref(py).eq(value.as_ref(py))? {
+                        return Ok(true);
+                    }
+                },
+                // If Slot::Empty -> Continue to next loope iteration.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // DEFAULT = Entire list array has been checked & no correct value was found. 
+        Ok(false)
+    }
+
     pub fn capacity(&self) -> PyResult<usize> {
         // Return the current maximum capacity of the internal Rust Vectors.
         Ok(self.capacity)
