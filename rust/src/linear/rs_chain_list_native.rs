@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::f32::consts::E;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -203,6 +202,42 @@ impl ChainList {
         // DEFAULT = Entire list array has been checked & no correct value was found.
         // Return 'None'. 
         Ok(None)
+    }
+
+    pub fn update(&mut self, index: usize, value: PyObject) -> PyResult<bool> {
+        // Check if the specified Index is out of bounds. 
+        if index > self.list_size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! Current size is {} entries", self.list_size)
+            ));
+        }
+
+        // Initiate index value.
+        let mut int_index = self.head;
+
+        // Iterate over all values present in internal List array.
+        for _ in 0..=self.list_size {
+            // Use Match stmt to determine if a values exists.
+            match &mut self.list_array[int_index] {
+                // If Slot::Occupied -> Check if internal value matches & then update 'Data' variable.
+                Slot::Occupied(link) => {
+                    if int_index == index {
+                        link.data = value;
+                        return Ok(true);
+                    } else {
+                        int_index = link.next;
+                    }
+                },
+                // If Slot::Empty -> Continue to next loop iteration.
+                Slot::Empty => {
+                    return Err(PyValueError::new_err(
+                        format!("Traversal Error! Link at index {} doesn't exist", int_index)
+                    ));
+                }
+            }
+        }
+        // DEFAULT = Didn't find the index value so return False.
+        Ok(false)
     }
 
     pub fn to_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
