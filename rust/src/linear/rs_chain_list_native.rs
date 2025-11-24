@@ -182,6 +182,126 @@ impl ChainList {
         Ok(false)
     }
 
+    pub fn get(&self, py: Python, index: usize) -> PyResult<PyObject> {
+        // Raise a ValueError if the speficied index if out of bounds.
+        let list_size = self.list_size;
+        if index >= list_size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! Current size is {} entries", list_size)
+            ));
+        }
+
+        // Get the starting index -> Logical Linked List order.
+        let mut current_idx = self.head;
+
+        // Iterate through Logical List order -> Node by Node.
+        for i in 0..=index {
+            // Utilise Match stmt to retrieve internal instances.
+            match &self.list_array[current_idx] {
+                // If Slot::Occupied -> Check if the current index matches to extract internal value.
+                Slot::Occupied(link) => {
+                    if i == index {
+                        return Ok(link.data.clone_ref(py));
+                    } else {
+                        current_idx = link.next;
+                    }
+                },
+                // If Slot::Empty -> Raise ValueError due to unexpected traversal mistake.
+                Slot::Empty => {
+                    return Err(PyValueError::new_err(
+                        format!("Traversal Error! Link at index {} doesn't exist", current_idx)
+                    ));
+                }
+            }
+        }
+        // DEFAULT = Debugging element to ensure this code-part is never reached!
+        unreachable!("Failed to correctl compute the 'Get' function.")
+    }
+
+    pub fn remove(&mut self, py: Python, index: usize) -> PyResult<PyObject> {
+        // Check if the specified Index is out of bounds.
+        let list_size = self.list_size;
+        if index >= list_size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! Current size is {} entries", list_size)
+            ));
+        }
+
+        // Retrieve 'Head' index to begin Logical order traversal.
+        let mut current_idx = self.head;
+
+        // Iterate through Logical order -> Until index is found.
+        for _ in 0..index {
+            // Match stmt to update current_idx value.
+            match &self.list_array[current_idx] {
+                // If Slot::Occupied -> Update current_idx with next index.
+                Slot::Occupied(link) => {
+                    current_idx = link.next;
+                },
+                // If Slot::Empty -> Raise ValueError as unexpected incident took place.
+                Slot::Empty => {
+                    return Err(PyValueError::new_err(
+                        format!("Traversal Error! Link at index {} doesn't exist", current_idx)
+                    ));
+                }
+            }
+        }
+
+        // Extract the internal values from ChainLink at final index.
+        let (data, next_val, prev_val) = match &self.list_array[current_idx] {
+            // If Slot::Occupied -> ChainLink exists.
+            Slot::Occupied(link) => (
+                link.data.clone_ref(py),
+                link.next,
+                link.previous,
+            ),
+            // If Slot::empty -> ChainLink doesn't exist - Unforseen error.
+            Slot::Empty => {
+                return Err(PyValueError::new_err(
+                    format!("Traversal Error! Link at index {} doesn't exist", current_idx)
+                ));
+            }
+        };
+
+        // Update the internal 'next' variable inside previous node. 
+        if let Slot::Occupied(previous) = &mut self.list_array[prev_val] {
+            previous.next = next_val;
+        } else {
+            // Unexpected error finding ChainLink-class.
+            return Err(PyValueError::new_err(
+                format!("Removal Error! Issues retrieving previous index: {}", prev_val)
+            ));
+        }
+
+        // Update the internal 'previous' variable inside next node. 
+        if let Slot::Occupied(next) = &mut self.list_array[next_val] {
+            next.previous = prev_val;
+        } else {
+            // Unexpected error finding ChainLink-class.
+            return Err(PyValueError::new_err(
+                format!("Removal Error! Issues retrieving next index: {}", next_val)
+            ));
+        }
+
+        // Check if the removed node was current 'head' / 'tail'
+        // If True -> Update internal values to preserve cyclical nature.
+        if current_idx == self.head {
+            self.head = next_val;
+        }
+        if current_idx == self.tail {
+            self.tail = prev_val;
+        }
+
+        // Finally convert the Slot at current index to Empty.
+        // Decrement list_size variable by 1 & push the final index to free_list.
+        self.list_array[current_idx] = Slot::Empty;
+        self.list_size -= 1;
+        self.free_list.push_front(current_idx);
+
+        // Return Python data.
+        Ok(data)
+    }
+
     pub fn search(&self, py: Python, value: PyObject) -> PyResult<Option<usize>> {
         // Iterate over internal list_array to determine if specified value is present.
         for index in 0..=self.next_index {
@@ -205,8 +325,8 @@ impl ChainList {
     }
 
     pub fn update(&mut self, index: usize, value: PyObject) -> PyResult<bool> {
-        // Check if the specified Index is out of bounds. 
-        if index > self.list_size {
+        // Check if the specified Index is out of bounds.
+        if index >= self.list_size {
             return Err(PyValueError::new_err(
                 format!("Index out of bounds! Current size is {} entries", self.list_size)
             ));
