@@ -218,6 +218,36 @@ impl ChainList {
         unreachable!("Failed to correctl compute the 'Get' function.")
     }
 
+    pub fn insert(&mut self, py: Python, index: usize, value: PyObject) -> PyResult<bool> {
+        // Check if the internal ChainList array is full -> Raise Error if True.
+        if self.is_full() {
+            return Err(PyValueError::new_err(
+                format!("ChainList at maximum capacity: {}! Unable to add value.", self.capacity)
+            ));
+        }
+
+        // Check if the specified Index is out of bounds.
+        let list_size = self.list_size;
+        if index >= list_size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! Current size is {} entries", list_size)
+            ));
+        }
+
+        if index == self.head {
+            self.prepend(value);
+            return Ok(true);
+        } else if index == self.tail {
+            self.append(value);
+            return Ok(true);
+        }
+
+        let availabe_idx = self.free_list.pop_back().ok_or_else(|| self.next_index);
+
+
+
+    }
+
     pub fn remove(&mut self, py: Python, index: usize) -> PyResult<PyObject> {
         // Check if the specified Index is out of bounds.
         let list_size = self.list_size;
@@ -391,6 +421,28 @@ impl ChainList {
         }
         // Convert the Rust Vectors to Python-native list type. 
         Ok(PyList::new(py, elements))
+    }
+
+    pub fn copy(&self, py: Python<'_>) -> PyResult<PyObject> {
+        // Instantiate a new ChainList-class.
+        let mut new_list = ChainList::new(Some(self.capacity));
+
+        // Iterate through internal list_array & use .insert() method to add values.
+        for index in 0..self.list_size {
+            // Utilise Match stmt to check if value exists.
+            match &self.list_array[index] {
+                // If Slot::Occupied -> Clone & insert values into new_list.
+                Slot::Occupied(link) => {
+                    new_list.insert(py, index, link.data.clone_ref(py));
+                },
+                // If Slot::Empty -> Continue to newxt loop iteration.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert Rust new_list to Python-native datatype. 
+        Ok(Py::new(py, new_list)?.into_py(py))
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
