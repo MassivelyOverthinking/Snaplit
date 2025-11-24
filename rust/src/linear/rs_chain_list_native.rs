@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::f32::consts::E;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -190,7 +191,7 @@ impl ChainList {
                 // If Slot::Occupied -> Check value & return link-index if it matches!
                 Slot::Occupied(link) => {
                     if link.data.as_ref(py).eq(value.as_ref(py))? {
-                        return Ok(Some(link.index));
+                        return Ok(Some(index));
                     }
                 },
                 // If Slot::Empty -> Continue to next loope iteration.
@@ -202,6 +203,30 @@ impl ChainList {
         // DEFAULT = Entire list array has been checked & no correct value was found.
         // Return 'None'. 
         Ok(None)
+    }
+
+    pub fn to_list<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initiate Rust Vectors & initial index value.
+        let mut elements: Vec<PyObject> = Vec::new();
+        let mut index = self.head;
+
+        // Iterate over all values present in internal List array.
+        for _ in 0..=self.list_size {
+            // Use Match stmt to determine if a values exists.
+            match &self.list_array[index] {
+                // If Slot::Occupied -> Copy the link's internal 'Data' value & add to Vectors.
+                Slot::Occupied(link) => {
+                    elements.push(link.data.clone_ref(py));
+                    index = link.next;
+                },
+                // If Slot::Empty -> Continue to next loop iteration.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert the Rust Vectors to Python-native list type. 
+        Ok(PyList::new(py, elements))
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
