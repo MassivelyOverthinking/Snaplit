@@ -16,6 +16,7 @@ use linear::queue_native::Queue;
 use linear::ring_buffer_native::RingBuffer;
 use linear::circular_buffer_native::CircularBuffer;
 use linear::priority_queue_native::PriorityQueue;
+use linear::rs_chain_list_native::ChainList;
 
 // imports from rust folders (Tree)
 use trees::rs_binary_tree_native::BinarySearchTree;
@@ -49,6 +50,7 @@ pub fn _rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<RingBuffer>()?;
     m.add_class::<CircularBuffer>()?;
     m.add_class::<PriorityQueue>()?;
+    m.add_class::<ChainList>()?;
     m.add_class::<BinarySearchTree>()?;
     m.add_class::<AVLTree>()?;
     m.add_class::<Trie>()?;
