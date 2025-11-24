@@ -302,6 +302,15 @@ impl ChainList {
         Ok(data)
     }
 
+    pub fn pop(&mut self, py: Python, index: Option<usize>) -> PyResult<PyObject> {
+        // Unwrap the specified index option -> Defaults to self.tail.
+        let index_to_remove = index.unwrap_or(self.tail);
+
+        // Get removed value using internal '.remove' method.
+        let removed_value = self.remove(py, index_to_remove)?;
+        Ok(removed_value)
+    }
+
     pub fn search(&self, py: Python, value: PyObject) -> PyResult<Option<usize>> {
         // Iterate over internal list_array to determine if specified value is present.
         for index in 0..=self.next_index {
