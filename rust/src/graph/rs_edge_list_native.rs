@@ -49,6 +49,10 @@ impl EdgeList {
     fn is_full(&self) -> bool {
         return self.size >= self.capacity;
     }
+
+    fn sort_by_weight(&mut self) {
+        self.vertices.sort_by(|x, y| x.2.partial_cmp(&y.2).unwrap());
+    }
 }
 
 #[pymethods]
@@ -163,9 +167,12 @@ impl EdgeList {
         Ok(PyList::new(py, elements))
     }
 
-    pub fn edges<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+    pub fn edges<'py>(&mut self, py: Python<'py>, sort: Option<bool>) -> PyResult<&'py PyList> {
         // Instantialize a new Rust Vectors.
         let mut elements: Vec<PyObject> = Vec::new();
+
+        // Unwrap sort option -> Use it to sort list.
+        let sort = sort.unwrap_or(false);
 
         // Iterate through available slots in nodes-array.
         for vertex in &self.vertices {
@@ -177,6 +184,12 @@ impl EdgeList {
             // Add element to internal Rust Vector.
             elements.push((from_node, to_node, weight).into_py(py));
         }
+
+        // Sort value by weight if specified.
+        if sort {
+            self.sort_by_weight();
+        }
+
         // Convert & return finalized PyList-instance. 
         Ok(PyList::new(py, elements))
     }
