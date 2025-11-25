@@ -141,6 +141,46 @@ impl EdgeList {
         Ok(false)
     }
 
+    pub fn nodes<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Instantialize a new Rust Vectors.
+        let mut elements = Vec::new();
+
+        // Iterate through available slots in nodes-array.
+        for index in 0..=self.size {
+            // Match stmt to retreive internal values.
+            match &self.nodes[index] {
+                // If Slot::Occupied -> Add the data to elements list.
+                Slot::Occupied(node) => {
+                    elements.push(node.data.clone_ref(py));
+                },
+                // If Slot::Empty -> Continue to next loop iteration.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Convert & return the final PyList.
+        Ok(PyList::new(py, elements))
+    }
+
+    pub fn edges<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Instantialize a new Rust Vectors.
+        let mut elements: Vec<PyObject> = Vec::new();
+
+        // Iterate through available slots in nodes-array.
+        for vertex in &self.vertices {
+            // Extract necessary variables to construct Tuple.
+            let from_node = vertex.0;
+            let to_node = vertex.1;
+            let weight = vertex.2;
+
+            // Add element to internal Rust Vector.
+            elements.push((from_node, to_node, weight).into_py(py));
+        }
+        // Convert & return finalized PyList-instance. 
+        Ok(PyList::new(py, elements))
+    }
+
     pub fn capacity(&self) -> PyResult<usize> {
         // Return the current maximum capacity of the internal Rust Vectors.
         Ok(self.capacity)
