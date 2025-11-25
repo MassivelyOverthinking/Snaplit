@@ -218,7 +218,7 @@ impl ChainList {
         unreachable!("Failed to correctl compute the 'Get' function.")
     }
 
-    pub fn insert(&mut self, py: Python, index: usize, value: PyObject) -> PyResult<bool> {
+    pub fn insert(&mut self, index: usize, value: PyObject) -> PyResult<bool> {
         // Check if the internal ChainList array is full -> Raise Error if True.
         if self.is_full() {
             return Err(PyValueError::new_err(
@@ -234,18 +234,83 @@ impl ChainList {
             ));
         }
 
+        // Handle if the specified Index is at self.head or self.tail.
         if index == self.head {
-            self.prepend(value);
+            let _ = self.prepend(value);
             return Ok(true);
         } else if index == self.tail {
-            self.append(value);
+            let _ = self.append(value);
             return Ok(true);
         }
 
-        let availabe_idx = self.free_list.pop_back().ok_or_else(|| self.next_index);
+        // Initiate current index variable for iteration.
+        let mut current_index = self.head;
 
+        // Loop iteration by Logical Order.
+        for _ in 0..index {
+            match &self.list_array[current_index] {
+                // If Slot::Occupied -> Convert current index to link's .next value.
+                Slot::Occupied(link) => {
+                    current_index = link.next;
+                },
+                // If Slot::Empty -> Raise ValueError.
+                Slot::Empty => {
+                    return Err(PyValueError::new_err(
+                        format!("Traversal Error! Link at index {} doesn't exist", current_index)
+                    ));
+                }
+            }
+        }
 
+        // Extract both values from ChainLink instance at the correct index. 
+        let (next_idx, previous_idx) = match &self.list_array[current_index] {
+            // If Slot::Occupied -> Extract the 2 internal attributes.
+            Slot::Occupied(link) => {
+                (link.index, link.previous)
+            },
+            // If Slot::Empty -> Raise ValueError.
+            Slot::Empty => {
+                return Err(PyValueError::new_err(
+                    format!("Traversal Error! Link at index {} is currently empty", current_index)
+                ));
+            }
+        };
 
+        // Extract the next avaialable index in internal list array.
+        let availabe_idx = self.free_list.pop_back().unwrap_or(self.next_index);
+
+        // Instantialise new ChainLink-class.
+        let chain_link = ChainLink::new(
+            value,
+            next_idx,
+            previous_idx,
+            availabe_idx
+        );
+
+        // Add new chain_link to available index.
+        self.list_array[availabe_idx] = Slot::Occupied(chain_link);
+
+        // Update the .next variable of ChainLink.
+        if let Slot::Occupied(link) = &mut self.list_array[previous_idx] {
+            link.next = availabe_idx;
+        } else {
+            return Err(PyValueError::new_err(
+                    format!("Indexing Error! Issue adding next index to Node")
+                ));
+        }
+
+        // Update the .previous variable of ChainLink.
+        if let Slot::Occupied(link) = &mut self.list_array[next_idx] {
+            link.previous = availabe_idx;
+        } else {
+            return Err(PyValueError::new_err(
+                    format!("Indexing Error! Issue adding previous index to Node")
+                ));
+        }
+
+        // Increment list size variable & Return true.
+        self.list_size += 1;
+        Ok(true)
     }
 
     pub fn remove(&mut self, py: Python, index: usize) -> PyResult<PyObject> {
@@ -433,7 +498,7 @@ impl ChainList {
             match &self.list_array[index] {
                 // If Slot::Occupied -> Clone & insert values into new_list.
                 Slot::Occupied(link) => {
-                    new_list.insert(py, index, link.data.clone_ref(py));
+                    let _ = new_list.insert(index, link.data.clone_ref(py));
                 },
                 // If Slot::Empty -> Continue to newxt loop iteration.
                 Slot::Empty => {
