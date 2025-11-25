@@ -58,4 +58,27 @@ impl EdgeList {
             size: 0
         }
     }
+
+    pub fn capacity(&self) -> PyResult<usize> {
+        // Return the current maximum capacity of the internal Rust Vectors.
+        Ok(self.capacity)
+    }
+
+    pub fn size(&self) -> PyResult<usize> {
+        // Return the current node size of EdgeList instance.
+        Ok(self.size)
+    }
+
+    pub fn edge_count(&self) -> PyResult<usize> {
+        // Return the current number of edges in EdgeList instance.
+        Ok(self.vertices.len())
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        // Clear all internal attributes -> Resetting the entire data structure.
+        self.nodes = vec![Slot::Empty; self.capacity];
+        self.vertices = Vec::new();
+        self.size = 0;
+        Ok(())
+    }
 }
