@@ -29,6 +29,7 @@ use graph::rs_digraph_native::Digraph;
 use graph::rs_weighted_graph_native::WeightedGraph;
 use graph::rs_weighted_digraph_native::WeightedDigraph;
 use graph::rs_hypergraph_native::HyperGraph;
+use graph::rs_edge_list_native::EdgeList;
 
 // imports from rust folders (Hashing);
 use hashing::rs_snapmap_native::SnapMap;
@@ -65,5 +66,6 @@ pub fn _rust_snaplit(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WeightedGraph>()?;
     m.add_class::<WeightedDigraph>()?;
     m.add_class::<HyperGraph>()?;
+    m.add_class::<EdgeList>()?;
     Ok(())
 }

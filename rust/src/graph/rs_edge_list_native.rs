@@ -2,10 +2,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyTuple};
 use pyo3::PyObject;
-use rustc_hash::{FxHashMap, FxHasher};
-use core::net;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use std::collections::VecDeque;
 
 /// ---------------------------------------------------------------------------------
 /// Implementation of EdgeNode structure/class & related operations
@@ -43,7 +40,15 @@ pub struct EdgeList {
     capacity: usize,
     nodes: Vec<Slot>,
     vertices: Vec<(usize, usize, f64)>,
+    free_list: VecDeque<usize>,
+    next: usize,
     size: usize,
+}
+
+impl EdgeList {
+    fn is_full(&self) -> bool {
+        return self.size >= self.capacity;
+    }
 }
 
 #[pymethods]
@@ -55,8 +60,85 @@ impl EdgeList {
             capacity: cap,
             nodes: vec![Slot::Empty; cap],
             vertices: Vec::new(),
+            free_list: VecDeque::new(),
+            next: 0,
             size: 0
         }
+    }
+
+    pub fn insert(&mut self, item: PyObject) -> PyResult<bool> {
+        // Raise ValueError if Edge List is currently full.
+        if self.is_full() {
+            return Err(PyValueError::new_err(
+                format!("Edge list at maximum capacity: {}! Unable to add value", self.capacity)
+            ));
+        }
+
+        // Get the next available index.
+        let index = self.free_list.pop_back().unwrap_or(self.next);
+
+        // Instantiate new EdgeNode-class.
+        let new_node = EdgeNode::new(item, index);
+
+        // Match stmt to determine value at index.
+        match &mut self.nodes[index] {
+            // If Slot::Occupied -> Return False as the space is already taken.
+            Slot::Occupied(_) => {
+                return Ok(false);
+            },
+            // If Slot::Empty -> Add node-instance to available Slot & Increment size.
+            Slot::Empty => {
+                self.nodes[index] = Slot::Occupied(new_node);
+                self.size += 1;
+                self.next += 1;
+                return Ok(true);
+            }
+        }
+    }
+
+    pub fn get(&self, py: Python, index: usize) -> PyResult<PyObject> {
+        // Raise ValueError if specified Index is out of bounds.
+        let size = self.size;
+        if index > size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! Edge List currently contains {} entries", size)
+            ));
+        }
+
+        // Match stmt to correctly handle internal EdgeNode values.
+        match &self.nodes[index] {
+            // If Slot::Occupied -> Clone & return data.
+            Slot::Occupied(node) => {
+                return Ok(node.data.clone_ref(py));
+            },
+            // If Slot::Empty -> Raise ValueError to indicate issue retrieving data.
+            Slot::Empty => {
+                return Err(PyValueError::new_err(
+                    format!("Retrieval Error! No value found at index: {}", index)
+                ));
+            }
+        }
+    }
+
+    pub fn contains(&self, py: Python, item: PyObject) -> PyResult<bool> {
+        // Iterate through internal array list.
+        for index in 0..=self.size {
+            // Match stmt to retrieve internal EdgeNode-instance.
+            match &self.nodes[index] {
+                // If Slot::Occupied -> Compare item with internal value & Return bool accordingly.
+                Slot::Occupied(node) => {
+                    if node.data.as_ref(py).eq(item.as_ref(py))? {
+                        return Ok(true);
+                    }
+                },
+                // If Slot::Empty -> Continue to next loop iteration.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // Default = Value was not found so return False. 
+        Ok(false)
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
@@ -72,6 +154,11 @@ impl EdgeList {
     pub fn edge_count(&self) -> PyResult<usize> {
         // Return the current number of edges in EdgeList instance.
         Ok(self.vertices.len())
+    }
+
+    pub fn is_emtpy(&self) -> PyResult<bool> {
+        // check if EdgeList currently contains no Node-instances.
+        Ok(self.size == 0)
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
