@@ -45,6 +45,82 @@ impl TinySet {
         }
     }
 
+    pub fn contains(&self, py: Python, target: PyObject) -> PyResult<bool> {
+        // Binary Search -> Set 'left' & 'right' variables.
+        let mut left: usize = 0;
+        let mut right: usize = match self.size.checked_sub(1) {
+            Some(r) => r,
+            None => return Err(PyValueError::new_err("TinySet is currently empty! No entries to search through."))
+        };
+
+        // Continue to loop while 'left' & 'right' are distinct.
+        while left <= right {
+            // Get middle index.
+            let mid = left + (right - left) / 2;
+
+            // Retrieve the Object at middle index.
+            let mid_obj = &self.array[mid];
+
+            // If the mid-object equals the traget -> Return True.
+            // If the mid-object is greater -> Search upper part of array.
+            // If the mid-object is lesser -> Search lower part of array.
+            if mid_obj.as_ref(py).eq(target.as_ref(py))? {
+                return Ok(true);
+            } else if mid_obj.as_ref(py).gt(target.as_ref(py))? {
+                right = mid.checked_sub(1).unwrap_or(0);
+            } else {
+                left = mid + 1;
+            }
+        }
+        // DEFAULT = Target not found, so return False.
+        Ok(false)
+    }
+
+    pub fn update(&mut self, py: Python, target: PyObject, value: PyObject) -> PyResult<bool> {
+        // Binary Search -> Set 'left' & 'right' variables.
+        let mut left: usize = 0;
+        let mut right: usize = match self.size.checked_sub(1) {
+            Some(r) => r,
+            None => return Err(PyValueError::new_err("TinySet is currently empty! No entries to search through."))
+        };
+
+        // Continue to loop while 'left' & 'right' are distinct.
+        while left <= right {
+            // Get middle index.
+            let mid = left + (right - left) / 2;
+
+            // Retrieve the Object at middle index.
+            let mid_obj = &self.array[mid];
+
+            // If the mid-object equals the traget -> Update value & Return True.
+            // If the mid-object is greater -> Search upper part of array.
+            // If the mid-object is lesser -> Search lower part of array.
+            if mid_obj.as_ref(py).eq(target.as_ref(py))? {
+                self.array[mid] = value;
+                return Ok(true);
+            } else if mid_obj.as_ref(py).gt(target.as_ref(py))? {
+                right = mid.checked_sub(1).unwrap_or(0);
+            } else {
+                left = mid + 1;
+            }
+        }
+        // DEFAULT = Target not found, so return False.
+        Ok(false)
+    }
+
+    pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initiate new Rust Vectors to stores values.
+        let mut elements = Vec::new();
+
+        // Iterate through internal array & clone values.
+        for i in 0..=self.size {
+            elements.push(self.array[i].clone_ref(py));
+        }
+
+        // Convert & return the new PyList instance. 
+        Ok(PyList::new(py, elements))
+    }
+
     pub fn capacity(&self) -> PyResult<usize> {
         // Return the maximum number of possible entries in internal array. 
         Ok(self.capacity)
