@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PyTuple};
 use pyo3::PyObject;
 use std::collections::VecDeque;
+use std::mem::replace;
 
 /// ---------------------------------------------------------------------------------
 /// Implementation of EdgeNode structure/class & related operations
@@ -55,6 +56,15 @@ impl EdgeList {
 
     fn sort_by_weight(&mut self) {
         self.vertices.sort_by(|x, y| x.2.partial_cmp(&y.2).unwrap());
+    }
+
+    fn remove_all_edges(&mut self, id: usize) -> bool {
+
+        let before = self.vertices.len();
+
+        self.vertices.retain(|(x, y)| *x != id && *y != id);
+
+        before != self.vertices.len()
     }
 }
 
@@ -110,6 +120,47 @@ impl EdgeList {
         }
     }
 
+    pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
+        // Get the sum of internal size + free_list size to ensure full traversal. 
+        let size = self.vertices.len();
+
+        let mut removal_idx: Option<usize> = None;
+
+        for index in 0..=size {
+            match &mut self.nodes[index] {
+                Slot::Occupied(node) => {
+                    if value.as_ref(py).eq(node.data.as_ref(py))? {
+                        removal_idx = Some(index);
+                        break;
+                    }
+                },
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+
+        let idx = removal_idx.ok_or_else(|| {
+            PyValueError::new_err("Value Error! Node not found in list.")
+        })?;
+
+        let removed_val = match replace(&mut self.nodes[idx], Slot::Empty) {
+            Slot::Occupied(node) => node.data,
+            Slot::Empty => {
+                return Err(PyValueError::new_err(
+                    format!("Value Error! Unable to extract internal data value from node")
+                ));
+            }
+        };
+
+        self.free_list.push_front(idx);
+        self.size -= 1;
+
+        self.remove_all_edges(idx);
+
+        Ok(removed_val)
+    }
+
     pub fn extract(&self, py: Python, id: usize) -> PyResult<PyObject> {
         // Get the sum of internal size + free_list size to ensure full traversal. 
         let size = self.size + self.free_list.len();
@@ -158,7 +209,32 @@ impl EdgeList {
         Ok(false)
     }
 
-    pub fn nodes<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+    pub fn update(&mut self, id: usize, value: PyObject) -> PyResult<bool> {
+        // Get the sum of internal size + free_list size to ensure full traversal. 
+        let size = self.size / self.free_list.len();
+
+        // Traverse internal nodes array to fidn correct node.
+        for index in 0..=size {
+            // Match stmt to extract values.
+            match &mut self.nodes[index] {
+                // If Slot::Occupied -> Update the internal node data variable.
+                Slot::Occupied(node) => {
+                    if id == node.id {
+                        node.data = value;
+                        return Ok(true);
+                    }
+                },
+                // If Slot::Empty -> Continue to next loop itertion.
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        // DEFAULT = Return false as node with correct ID was not found.
+        Ok(false)
+    }
+
+    pub fn nodes<'py>(&self, py: Python<'py>, with_id: bool) -> PyResult<&'py PyList> {
         // Instantialize a new Rust Vectors.
         let mut elements = Vec::new();
 
@@ -171,6 +247,11 @@ impl EdgeList {
             match &self.nodes[index] {
                 // If Slot::Occupied -> Add the data to elements list.
                 Slot::Occupied(node) => {
+                    // If 'with_id' is True -> Return a Tuple of data & ID.
+                    if with_id {
+                        let result = (node.data.clone_ref(py), node.id).into_py(py);
+                        elements.push(result);
+                    }
                     elements.push(node.data.clone_ref(py));
                 },
                 // If Slot::Empty -> Continue to next loop iteration.
