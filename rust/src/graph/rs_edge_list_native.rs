@@ -42,7 +42,7 @@ impl EdgeNode {
 pub struct EdgeList {
     capacity: usize,
     nodes: Vec<Slot>,
-    vertices: Vec<(usize, usize, f64)>,
+    vertices: Vec<(String, String, f64)>,
     free_list: VecDeque<usize>,
     next: usize,
     size: usize,
@@ -57,7 +57,25 @@ impl EdgeList {
         self.vertices.sort_by(|x, y| x.2.partial_cmp(&y.2).unwrap());
     }
 
-    fn remove_all_edges(&mut self, id: usize) -> bool {
+    fn check_id(&mut self, id: String) -> bool {
+        let size = self.size + self.free_list.len();
+        for index in 0..=size {
+            match &mut self.nodes[index] {
+                Slot::Occupied(node) => {
+                    if id == node.id {
+                        node.edge_count += 1;
+                        return true;
+                    }
+                },
+                Slot::Empty => {
+                    continue;
+                }
+            }
+        }
+        false
+    }
+
+    fn remove_all_edges(&mut self, id: String) -> bool {
 
         let before = self.vertices.len();
 
@@ -117,7 +135,7 @@ impl EdgeList {
         }
     }
 
-    pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
+    pub fn remove(&mut self, id: String) -> PyResult<PyObject> {
         // Get the sum of internal size + free_list size to ensure full traversal. 
         let size = self.vertices.len();
 
@@ -126,7 +144,7 @@ impl EdgeList {
         for index in 0..=size {
             match &mut self.nodes[index] {
                 Slot::Occupied(node) => {
-                    if value.as_ref(py).eq(node.data.as_ref(py))? {
+                    if id == node.id {
                         removal_idx = Some(index);
                         break;
                     }
@@ -153,7 +171,7 @@ impl EdgeList {
         self.free_list.push_front(idx);
         self.size -= 1;
 
-        self.remove_all_edges(idx);
+        self.remove_all_edges(id);
 
         Ok(removed_val)
     }
@@ -231,6 +249,30 @@ impl EdgeList {
         Ok(false)
     }
 
+    pub fn add_edge(&mut self, from: String, to: String, weight: Option<f64>) -> PyResult<bool> {
+        // Check if Nodes exist.
+        if !self.check_id(from.clone()) {
+            return Err(PyValueError::new_err(
+                format!("Node with ID: {}, doesn't exist!", from)
+            ));
+        }
+
+        // Check if Nodes exist.
+        if !self.check_id(to.clone()) {
+            return Err(PyValueError::new_err(
+                format!("Node with ID: {}, doesn't exist!", to)
+            ));
+        }
+
+        // Unwrap the optional weight value.
+        let final_weight = weight.unwrap_or(0.0);
+
+        // Create the final edge-tuple to insert. 
+        let edge = (from, to, final_weight);
+        self.vertices.push(edge);
+        Ok(true)
+    }
+
     pub fn nodes<'py>(&self, py: Python<'py>, with_id: bool) -> PyResult<&'py PyList> {
         // Instantialize a new Rust Vectors.
         let mut elements = Vec::new();
@@ -271,8 +313,8 @@ impl EdgeList {
         // Iterate through available slots in nodes-array.
         for vertex in &self.vertices {
             // Extract necessary variables to construct Tuple.
-            let from_node = vertex.0;
-            let to_node = vertex.1;
+            let from_node = &vertex.0;
+            let to_node = &vertex.1;
             let weight = vertex.2;
 
             // Add element to internal Rust Vector.
