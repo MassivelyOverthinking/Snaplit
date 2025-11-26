@@ -16,14 +16,16 @@ enum Slot {
 
 #[derive(Debug, Clone)]
 struct EdgeNode {
+    id: usize,
     data: PyObject,
     index: usize,
     edge_count: usize,
 }
 
 impl EdgeNode {
-    fn new(data: PyObject, index: usize) -> Self {
+    fn new(id: usize, data: PyObject, index: usize) -> Self {
         Self {
+            id: id,
             data: data,
             index: index,
             edge_count: 0,
@@ -42,6 +44,7 @@ pub struct EdgeList {
     vertices: Vec<(usize, usize, f64)>,
     free_list: VecDeque<usize>,
     next: usize,
+    next_id: usize,
     size: usize,
 }
 
@@ -66,6 +69,7 @@ impl EdgeList {
             vertices: Vec::new(),
             free_list: VecDeque::new(),
             next: 0,
+            next_id: 1,
             size: 0
         }
     }
@@ -82,7 +86,7 @@ impl EdgeList {
         let index = self.free_list.pop_back().unwrap_or(self.next);
 
         // Instantiate new EdgeNode-class.
-        let new_node = EdgeNode::new(item, index);
+        let new_node = EdgeNode::new(self.next_id, item, index);
 
         // Match stmt to determine value at index.
         match &mut self.nodes[index] {
@@ -94,39 +98,48 @@ impl EdgeList {
             Slot::Empty => {
                 self.nodes[index] = Slot::Occupied(new_node);
                 self.size += 1;
-                self.next += 1;
+                self.next_id += 1;
+
+                // Do not increment next-variable if the index was aquired from free_list.
+                if index == self.next {
+                    self.next += 1;
+                }
+
                 return Ok(true);
             }
         }
     }
 
-    pub fn get(&self, py: Python, index: usize) -> PyResult<PyObject> {
-        // Raise ValueError if specified Index is out of bounds.
-        let size = self.size;
-        if index > size {
-            return Err(PyValueError::new_err(
-                format!("Index out of bounds! Edge List currently contains {} entries", size)
-            ));
-        }
+    pub fn extract(&self, py: Python, id: usize) -> PyResult<PyObject> {
+        // Get the sum of internal size + free_list size to ensure full traversal. 
+        let size = self.size + self.free_list.len();
 
-        // Match stmt to correctly handle internal EdgeNode values.
-        match &self.nodes[index] {
-            // If Slot::Occupied -> Clone & return data.
-            Slot::Occupied(node) => {
-                return Ok(node.data.clone_ref(py));
-            },
-            // If Slot::Empty -> Raise ValueError to indicate issue retrieving data.
-            Slot::Empty => {
-                return Err(PyValueError::new_err(
-                    format!("Retrieval Error! No value found at index: {}", index)
-                ));
+        // Iterate over internal nodes list. 
+        for i in 0..=size {
+            // Match stmt to correctly handle internal EdgeNode values.
+            match &self.nodes[i] {
+                // If Slot::Occupied -> Clone & return data.
+                Slot::Occupied(node) => {
+                    if node.id == id {
+                        return Ok(node.data.clone_ref(py));
+                    }
+                },
+                // If Slot::Empty -> Continue to next loop iteration..
+                Slot::Empty => {
+                    continue;
+                }
             }
         }
+        // DEFAULT = Node with ID not found in EdgeList.
+        Ok(py.None())
     }
 
     pub fn contains(&self, py: Python, item: PyObject) -> PyResult<bool> {
+        // Get the sum of internal size + free_list size to ensure full traversal. 
+        let size = self.size + self.free_list.len();
+
         // Iterate through internal array list.
-        for index in 0..=self.size {
+        for index in 0..=size {
             // Match stmt to retrieve internal EdgeNode-instance.
             match &self.nodes[index] {
                 // If Slot::Occupied -> Compare item with internal value & Return bool accordingly.
@@ -149,8 +162,11 @@ impl EdgeList {
         // Instantialize a new Rust Vectors.
         let mut elements = Vec::new();
 
+        // Get the sum of internal size + free_list size to ensure full traversal. 
+        let size = self.size + self.free_list.len();
+
         // Iterate through available slots in nodes-array.
-        for index in 0..=self.size {
+        for index in 0..=size {
             // Match stmt to retreive internal values.
             match &self.nodes[index] {
                 // If Slot::Occupied -> Add the data to elements list.
@@ -219,6 +235,7 @@ impl EdgeList {
         self.nodes = vec![Slot::Empty; self.capacity];
         self.vertices = Vec::new();
         self.size = 0;
+        self.next_id = 0;
         Ok(())
     }
 }
