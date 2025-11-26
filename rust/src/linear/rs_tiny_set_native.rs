@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyObject;
-use pyo3::types::PyList;
+use pyo3::types::{IntoPyDict, PyDict, PyList};
 
 /// ---------------------------------------------------------------------------------
 /// Implementation of ChainLink helper class & Slot Enum
@@ -119,6 +119,25 @@ impl TinySet {
 
         // Convert & return the new PyList instance. 
         Ok(PyList::new(py, elements))
+    }
+
+    pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        // Extract the necessary metrics from internal variables
+        let percentage = self.percentage()?;
+        let values = self.values(py)?.into();
+
+        // Contruct a Rust Vector consisting of individual Tuples(String, Object).
+        let key_vals: Vec<(&str, PyObject)> = vec![
+            ("type", "TinySet".to_object(py)),
+            ("capacity", self.capacity.to_object(py)),
+            ("size", self.size.to_object(py)),
+            ("percentage", percentage.to_object(py)),
+            ("values", values),
+        ];
+
+        // Convert Vector to Python Dictionary and return value.
+        let dict = key_vals.into_py_dict(py);
+        Ok(dict)
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
