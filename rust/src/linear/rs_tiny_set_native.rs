@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::mem::transmute;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyObject;
@@ -13,10 +14,23 @@ use pyo3::types::{IntoPyDict, PyDict, PyList};
 pub struct TinySet {
     capacity: usize,
     size: usize,
+    none: PyObject,
     array: Vec<PyObject>,
 }
 
 impl TinySet {
+    fn shift_upwards(&mut self, end_index: usize) {
+        if end_index >= self.array.len() - 1 {
+            return;
+        }
+
+        for index in (end_index + 1..self.array.len()).rev() {
+            self.array[index] = self.array[index - 1].clone();
+        }
+
+        self.array[end_index] = self.none.clone();
+    }
+
     fn comparison(py: Python, x: PyObject, y: PyObject) -> PyResult<Ordering> {
         let x_ref = x.as_ref(py);
         let y_ref = y.as_ref(py);
@@ -38,11 +52,40 @@ impl TinySet {
     #[new]
     pub fn new(py: Python, capacity: Option<usize>) -> Self {
         let cap = capacity.unwrap_or(128);
+        let none = py.None();
         Self {
             capacity: cap,
             size: 0,
-            array: vec![py.None(); cap],
+            none: none.clone(),
+            array: vec![none; cap],
         }
+    }
+
+    pub fn add(&mut self, py: Python, value: PyObject) -> PyResult<bool> {
+        // The starting index for iteration.
+        let mut current_index: usize = 0;
+
+        // Iterate through the internal array.
+        for index in 0..self.array.len() {
+            // Get reference to the value-object.
+            let item = self.array[index].as_ref(py);
+
+            // If value == item -> Duplicate value so terminate.
+            if value.as_ref(py).eq(item)? {
+                return Ok(false);
+            // If value < item -> Arrived at correct index for insertion.
+            } else if value.as_ref(py).lt(item)? {
+                // Get the index & terminate loop.
+                current_index = index;
+                break;
+            }
+        }
+
+        // Shift all value upwards & return.
+        self.shift_upwards(current_index);
+        self.array[current_index] = value;
+        self.size += 1;
+        Ok(true)
     }
 
     pub fn contains(&self, py: Python, target: PyObject) -> PyResult<bool> {
