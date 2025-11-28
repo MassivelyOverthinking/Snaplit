@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-use std::mem::transmute;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyObject;
@@ -15,6 +13,7 @@ pub struct TinySet {
     capacity: usize,
     size: usize,
     none: PyObject,
+    threshold: f64,
     array: Vec<PyObject>,
 }
 
@@ -44,42 +43,40 @@ impl TinySet {
         self.array[size - 1] = self.none.clone();
     }
 
-    fn comparison(py: Python, x: PyObject, y: PyObject) -> PyResult<Ordering> {
-        let x_ref = x.as_ref(py);
-        let y_ref = y.as_ref(py);
+    fn restructure(&mut self, py: Python) {
+        let capacity = self.capacity * 2;
+        let mut new_vector = vec![self.none.clone(); capacity];
 
-        if x_ref.lt(y_ref)? {
-            Ok(Ordering::Less)
-        } else if x_ref.gt(y_ref)? {
-            Ok(Ordering::Greater)
-        } else if x_ref.eq(y_ref)? {
-            Ok(Ordering::Equal)
-        } else {
-            Err(PyValueError::new_err("Cannot compare Python Objects"))
+        for index in 0..self.size {
+            new_vector[index] = self.array[index].clone_ref(py);
         }
+
+        self.array = new_vector;
+        self.capacity = capacity;
     }
 }
 
 #[pymethods]
 impl TinySet {
     #[new]
-    pub fn new(py: Python, capacity: Option<usize>) -> Self {
+    pub fn new(py: Python, capacity: Option<usize>, threshold: Option<f64>) -> Self {
         let cap = capacity.unwrap_or(128);
+        let factor = threshold.unwrap_or(80.0);
         let none = py.None();
         Self {
             capacity: cap,
             size: 0,
             none: none.clone(),
+            threshold: factor,
             array: vec![none; cap],
         }
     }
 
     pub fn add(&mut self, py: Python, value: PyObject) -> PyResult<bool> {
-        let cap = self.capacity;
-        if self.size >= cap {
-            return Err(PyValueError::new_err(
-                format!("Maximum capacity {} reached! Unable to insert value", cap)
-            ));
+        // Grow if necessary method.
+        let load_factor = self.percentage()?;
+        if load_factor >= self.threshold {
+            self.restructure(py);
         }
 
         // The starting index for iteration.
@@ -175,36 +172,41 @@ impl TinySet {
         Ok(false)
     }
 
-    pub fn update(&mut self, py: Python, target: PyObject, value: PyObject) -> PyResult<bool> {
-        // Binary Search -> Set 'left' & 'right' variables.
-        let mut left: usize = 0;
-        let mut right: usize = match self.size.checked_sub(1) {
-            Some(r) => r,
-            None => return Err(PyValueError::new_err("TinySet is currently empty! No entries to search through."))
-        };
-
-        // Continue to loop while 'left' & 'right' are distinct.
-        while left <= right {
-            // Get middle index.
-            let mid = left + (right - left) / 2;
-
-            // Retrieve the Object at middle index.
-            let mid_obj = &self.array[mid];
-
-            // If the mid-object equals the traget -> Update value & Return True.
-            // If the mid-object is greater -> Search upper part of array.
-            // If the mid-object is lesser -> Search lower part of array.
-            if mid_obj.as_ref(py).eq(target.as_ref(py))? {
-                self.array[mid] = value;
-                return Ok(true);
-            } else if mid_obj.as_ref(py).gt(target.as_ref(py))? {
-                right = mid.checked_sub(1).unwrap_or(0);
-            } else {
-                left = mid + 1;
-            }
+    pub fn get(&self, py: Python, index: usize) -> PyResult<PyObject> {
+        // Retrieve internal array size.
+        let size = self.size;
+        // Raise Error if the index is out of bounds.
+        if index >= size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! TinySet currently holds {} entries", size)
+            ));
         }
-        // DEFAULT = Target not found, so return False.
-        Ok(false)
+        // Return a copy of the value at index.
+        Ok(self.array[index].clone_ref(py))
+    }
+
+    pub fn first(&self, py: Python) -> PyResult<PyObject> {
+        // If the current array is empty -> Raise ValueError.
+        if self.is_empty()? {
+            return Err(PyValueError::new_err(
+                format!("TinySet is currently empty! No values to inspect")
+            ));
+        }
+
+        // Return the value at index 0.
+        Ok(self.array[0].clone_ref(py))
+    }
+
+    pub fn last(&self, py: Python) -> PyResult<PyObject> {
+        // If the current array is empty -> Raise ValueError.
+        if self.is_empty()? {
+            return Err(PyValueError::new_err(
+                format!("TinySet is currently empty! No values to inspect")
+            ));
+        }
+
+        // Return the value at final array index.
+        Ok(self.array[self.size - 1].clone_ref(py))
     }
 
     pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
@@ -218,6 +220,19 @@ impl TinySet {
 
         // Convert & return the new PyList instance. 
         Ok(PyList::new(py, elements))
+    }
+
+    pub fn copy(&self, py: Python<'_>) -> PyResult<PyObject> {
+        // Instantiate new new TinySet-class.
+        let mut new_set = TinySet::new(py, Some(self.capacity), Some(self.threshold));
+
+        // Iterate through the entire list and add values.
+        for index in 0..self.size - 1 {
+            let _ = new_set.add(py, self.array[index].clone_ref(py));
+        }
+
+        // Convert the TinySet into a Python-native object. 
+        Ok(Py::new(py, new_set)?.into_py(py))
     }
 
     pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
