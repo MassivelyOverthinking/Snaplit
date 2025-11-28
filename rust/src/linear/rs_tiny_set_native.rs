@@ -185,6 +185,27 @@ impl TinySet {
         Ok(self.array[index].clone_ref(py))
     }
 
+    pub fn range<'py>(&self, py: Python<'py>, start: usize, end: usize) -> PyResult<&'py PyList> {
+        // Raise Error if any of the indexes are out of bounds!
+        let size = self.size;
+        if start > size || end > size {
+            return Err(PyValueError::new_err(
+                format!("Index out of bounds! TinySet currently holds {} entries", size)
+            ));
+        }
+
+        // Create new storage Vectors.
+        let mut elements = Vec::new();
+
+        // Iterate through & clone values.
+        for index in start..=end {
+            elements.push(self.array[index].clone_ref(py));
+        }
+
+        // Convert to Python-native list and return.
+        Ok(PyList::new(py, elements))
+    }
+
     pub fn first(&self, py: Python) -> PyResult<PyObject> {
         // If the current array is empty -> Raise ValueError.
         if self.is_empty()? {
