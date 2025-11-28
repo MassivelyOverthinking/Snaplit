@@ -31,6 +31,19 @@ impl TinySet {
         self.array[end_index] = self.none.clone();
     }
 
+    fn shift_downwards(&mut self, start_index: usize) {
+        let size = self.size;
+        if start_index >= size {
+            return;
+        }
+
+        for index in start_index..size - 1 {
+            self.array[index] = self.array[index + 1].clone();
+        }
+
+        self.array[size - 1] = self.none.clone();
+    }
+
     fn comparison(py: Python, x: PyObject, y: PyObject) -> PyResult<Ordering> {
         let x_ref = x.as_ref(py);
         let y_ref = y.as_ref(py);
@@ -62,6 +75,13 @@ impl TinySet {
     }
 
     pub fn add(&mut self, py: Python, value: PyObject) -> PyResult<bool> {
+        let cap = self.capacity;
+        if self.size >= cap {
+            return Err(PyValueError::new_err(
+                format!("Maximum capacity {} reached! Unable to insert value", cap)
+            ));
+        }
+
         // The starting index for iteration.
         let mut current_index: usize = 0;
 
@@ -86,6 +106,42 @@ impl TinySet {
         self.array[current_index] = value;
         self.size += 1;
         Ok(true)
+    }
+
+    pub fn pop(&mut self, py: Python) -> PyResult<PyObject> {
+        // Remove the current value at index 0.
+        let removed_value = self.array[0].clone_ref(py);
+
+        // Shift all values in internal array downwards & return removed value.
+        self.shift_downwards(0);
+        self.size -= 1;
+        Ok(removed_value)
+    }
+
+    pub fn remove(&mut self, py: Python, value: PyObject) -> PyResult<PyObject> {
+        // Get a reference to the value-object.
+        let value_ref = value.as_ref(py);
+        
+        // Iterate over internal array.
+        for index in 0..self.size {
+            // retrieve a reference to the internal value at index.
+            let item = self.array[index].as_ref(py);
+            // If value == item -> Remove the value and shift downwards.
+            if value_ref.eq(item)? {
+                let removed_value = self.array[index].clone_ref(py);
+                self.shift_downwards(index);
+                self.size -= 1;
+                return Ok(removed_value);
+
+            // If value < item -> Break loop iteration.
+            } else if value_ref.lt(item)? {
+                break;
+            }
+        }
+        // DEFAULT = No value found in the TinySet structure.
+        return Err(PyValueError::new_err(
+            format!("Value: {} not found in TinySet!", value)
+        ));
     }
 
     pub fn contains(&self, py: Python, target: PyObject) -> PyResult<bool> {
