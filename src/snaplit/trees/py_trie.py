@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import Trie as _RustTrie
+from _rust_snaplit import Trie as _RustTrie
 
 from typing import List, Iterable, Iterator
 

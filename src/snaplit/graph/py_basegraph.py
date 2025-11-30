@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import BaseGraph as _RustBaseGraph
+from _rust_snaplit import BaseGraph as _RustBaseGraph
 
 from typing import Any, List, Tuple, Optional, Union
 

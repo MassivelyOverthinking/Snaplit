@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import WeightedDigraph as _RustWeightedDigraph
+from _rust_snaplit import WeightedDigraph as _RustWeightedDigraph
 
 from typing import Any, List, Tuple, Optional, Union
 

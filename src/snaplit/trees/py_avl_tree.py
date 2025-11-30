@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import AVLTree as _RustAVL
+from _rust_snaplit import AVLTree as _RustAVL
 
 from typing import Any, List, Iterable, Iterator
 

@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import HyperGraph as _RustHypergraph
+from _rust_snaplit import HyperGraph as _RustHypergraph
 
 from typing import Any, List, Optional
 

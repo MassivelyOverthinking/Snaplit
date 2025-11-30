@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import CircularBuffer as _RustCircularBuffer
+from _rust_snaplit import CircularBuffer as _RustCircularBuffer
 
 from typing import Any, Optional, List, Iterable
 

@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import LinkedList as _RustLinkedList
+from _rust_snaplit import LinkedList as _RustLinkedList
 
 from typing import Any, Optional, List, Iterator
 

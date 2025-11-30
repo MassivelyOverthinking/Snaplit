@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import Queue as _RustQueue
+from _rust_snaplit import Queue as _RustQueue
 
 from typing import Any, Optional, List, Iterator
 

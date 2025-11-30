@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import CuckooFilter as _RustCuckooFilter
+from _rust_snaplit import CuckooFilter as _RustCuckooFilter
 
 from typing import Any, Optional
 

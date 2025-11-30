@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import PriorityQueue as _RustPriorityQueue
+from _rust_snaplit import PriorityQueue as _RustPriorityQueue
 
 from typing import Any, List, Union, Tuple, Iterable
 

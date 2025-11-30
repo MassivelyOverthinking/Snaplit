@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import BinarySearchTree as _RustBST
+from _rust_snaplit import BinarySearchTree as _RustBST
 
 from typing import Any, List, Iterable
 

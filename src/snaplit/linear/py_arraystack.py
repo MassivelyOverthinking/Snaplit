@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import ArrayStack as _RustArrayStack
+from _rust_snaplit import ArrayStack as _RustArrayStack
 
 from typing import Any, List, Iterable, Iterator
 

@@ -1,6 +1,6 @@
 #---------- Imports ----------
 
-from snaplit._rust_snaplit import Flatlist as _RustFlatlist
+from _rust_snaplit import Flatlist as _RustFlatlist
 
 from typing import Any, Optional, Iterable, List, Iterator
 
