@@ -17,7 +17,7 @@ pub struct Sparselist {
     threshold: f64,
     none: PyObject,
     array: Vec<PyObject>,
-    free: VecDeque<PyObject>,
+    free: VecDeque<usize>,
 }
 
 impl Sparselist {
@@ -52,6 +52,26 @@ impl Sparselist {
             none: none.clone(),
             array: vec![none; cap],
             free: VecDeque::new(),
+        }
+    }
+
+    pub fn add(&mut self, py: Python, value: PyObject) -> PyResult<bool> {
+        // Grow the internal Rust Vector if the load factor is too high.
+        if self.percentage()? >= self.threshold {
+            self.restructure(py);
+        }
+
+        // Check if there is an available index & insert if True.
+        if let Some(index) = self.free.pop_back() {
+            self.array[index] = value;
+            self.size += 1;
+            return Ok(true);
+        } else {
+            // Else -> Insert in the next available index.
+            self.array[self.next] = value;
+            self.next += 1;
+            self.size += 1;
+            return Ok(true);
         }
     }
 
