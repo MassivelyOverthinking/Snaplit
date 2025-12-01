@@ -4,7 +4,7 @@ use pyo3::PyObject;
 use pyo3::types::{IntoPyDict, PyDict, PyList};
 
 /// ---------------------------------------------------------------------------------
-/// Implementation of ChainLink helper class & Slot Enum
+/// Implementation of TinySet main class & general methods/operations
 /// ---------------------------------------------------------------------------------
 
 

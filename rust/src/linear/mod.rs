@@ -7,3 +7,4 @@ pub mod circular_buffer_native;
 pub mod priority_queue_native;
 pub mod rs_chain_list_native;
 pub mod rs_tiny_set_native;
+pub mod rs_sparse_list_native;
