@@ -55,6 +55,20 @@ impl Sparselist {
         }
     }
 
+    pub fn contains(&self, py: Python, value: PyObject) -> PyResult<bool> {
+        // Iterate over internal array to extract values.
+        for index in 0..(self.size + self.free.len()) {
+            // Extract internal value at specified index.
+            let item = self.array[index].clone_ref(py);
+            // If Item is equal to specified value -> Return True.
+            if item.as_ref(py).eq(value.as_ref(py))? {
+                return Ok(true);
+            }
+        }
+        // DEFAULT = No correct value found -> Return False.
+        Ok(false)
+    }
+
     pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
         // Initiate a new Rust Vectors to store values
         let mut elements = Vec::new();
@@ -71,6 +85,25 @@ impl Sparselist {
 
         // Convert & return finalized PyList.
         Ok(PyList::new(py, elements))
+    }
+
+    pub fn info<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        // Extract the necessary metrics from internal variables
+        let percentage = self.percentage()?;
+        let values = self.values(py)?.into();
+
+        // Contruct a Rust Vector consisting of individual Tuples(String, Object).
+        let key_vals: Vec<(&str, PyObject)> = vec![
+            ("type", "SparseList".to_object(py)),
+            ("capacity", self.capacity.to_object(py)),
+            ("size", self.size.to_object(py)),
+            ("percentage", percentage.to_object(py)),
+            ("values", values),
+        ];
+
+        // Convert Vector to Python Dictionary and return value.
+        let dict = key_vals.into_py_dict(py);
+        Ok(dict)
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
