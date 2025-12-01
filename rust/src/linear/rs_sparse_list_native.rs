@@ -20,6 +20,23 @@ pub struct Sparselist {
     free: VecDeque<PyObject>,
 }
 
+impl Sparselist {
+    fn restructure(&mut self, py: Python) {
+        let new_capacity = self.capacity * 2;
+        let mut elements = vec![self.none.clone(); new_capacity];
+
+        for index in 0..(self.size + self.free.len()) {
+            let item = self.array[index].clone_ref(py);
+            if item.as_ref(py).eq(self.none.as_ref(py)).expect("Failed to comapre!") {
+                elements[index] = item;
+            }
+        }
+
+        self.array = elements;
+        self.capacity = new_capacity;
+    }
+}
+
 #[pymethods]
 impl Sparselist {
     #[new]
@@ -36,6 +53,24 @@ impl Sparselist {
             array: vec![none; cap],
             free: VecDeque::new(),
         }
+    }
+
+    pub fn values<'py>(&self, py: Python<'py>) -> PyResult<&'py PyList> {
+        // Initiate a new Rust Vectors to store values
+        let mut elements = Vec::new();
+
+        // Iterate over internal array & add values != None.
+        for index in 0..(self.size + self.free.len()) {
+            // Extract reference to the internal value.
+            let item = self.array[index].clone_ref(py);
+            // If the extracted value is not 'None' -> Add to 'Elements'.
+            if item.as_ref(py).eq(self.none.as_ref(py))? {
+                elements.push(item);
+            }
+        }
+
+        // Convert & return finalized PyList.
+        Ok(PyList::new(py, elements))
     }
 
     pub fn capacity(&self) -> PyResult<usize> {
