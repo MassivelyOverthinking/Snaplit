@@ -37,4 +37,28 @@ impl Sparselist {
             free: VecDeque::new(),
         }
     }
+
+    pub fn capacity(&self) -> PyResult<usize> {
+        // Return the current capacity of the internal array.
+        Ok(self.capacity)
+    }
+
+    pub fn size(&self) -> PyResult<usize> {
+        // Return the current number of entries present in internal array.
+        Ok(self.size)
+    }
+
+    pub fn percentage(&self) -> PyResult<f64> {
+        // Return the current percentage of the internal array that is occupied by entries.
+        Ok((self.size as f64 / self.capacity as f64) * 100.0)
+    }
+
+    pub fn clear(&mut self) -> PyResult<()> {
+        // Clear all internal variables & reset them to original values.
+        self.size = 0;
+        self.next = 0;
+        self.array = vec![self.none.clone(); self.capacity];
+        self.free.clear();
+        Ok(())
+    }
 }
